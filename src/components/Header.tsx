@@ -4,7 +4,7 @@ export function Header() {
       <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-[var(--muted)]">
-            Hackathon MVP
+            Human Intelligence Lab
           </p>
           <h1 className="text-xl font-semibold text-[var(--foreground)]">
             Speech Buddy

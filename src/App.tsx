@@ -4,6 +4,7 @@ import { StepIndicator } from "@/components/StepIndicator";
 import { SpeechBriefForm } from "@/components/SpeechBriefForm";
 import { RecordOrUpload } from "@/components/RecordOrUpload";
 import { FeedbackReport } from "@/components/FeedbackReport";
+import { AnalyzingOverlay } from "@/components/AnalyzingOverlay";
 import { analyzeSpeech } from "@/lib/analyze";
 import type { AppStep, SpeechBrief, SpeechFeedback } from "@/types/speech";
 import { EMPTY_BRIEF } from "@/types/speech";
@@ -40,6 +41,7 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      {isAnalyzing && <AnalyzingOverlay />}
       <Header />
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8">
         <StepIndicator current={step} />

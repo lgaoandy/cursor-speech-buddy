@@ -22,3 +22,12 @@ body {
     Roboto,
     sans-serif;
 }
+
+@keyframes wave {
+  from {
+    transform: scaleY(0.4);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}

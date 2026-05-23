@@ -1,7 +1,9 @@
 # Hackathon plan — Speech Buddy
 
 **Team:** 1 full-stack dev · 1 cloud/networking · 1 IT (junior)  
-**Time:** ~14 hours focused work
+**Time:** ~14 hours focused work  
+
+**Detailed step-by-step tasks (3 lists):** see [TEAM_ASSIGNMENTS.md](./TEAM_ASSIGNMENTS.md)
 
 ## MVP checklist
 

@@ -12,8 +12,9 @@ AI-assisted practice for public speaking, presentations, and communication — b
 ```
 speech-buddy/
 ├── docs/
-│   ├── HACKATHON.md      # Team plan & hour-by-hour guide
-│   └── DEMO_SCRIPT.md    # 3-minute demo walkthrough
+│   ├── HACKATHON.md         # Short checklist & timeline
+│   ├── TEAM_ASSIGNMENTS.md  # Per-person tasks + Cursor steps
+│   └── DEMO_SCRIPT.md       # 3-minute demo walkthrough
 ├── src/
 │   ├── components/       # UI (form, record/upload, feedback)
 │   ├── lib/              # Rubric, prompts, analyze client

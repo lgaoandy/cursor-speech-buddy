@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { RecordingTimer } from "@/components/RecordingTimer";
 
 interface RecordOrUploadProps {
   onBack: () => void;
   onAnalyze: (audio: Blob, durationSeconds: number) => void;
   isAnalyzing: boolean;
+  timeLimitSeconds: number;
 }
 
 export function RecordOrUpload({
   onBack,
   onAnalyze,
   isAnalyzing,
+  timeLimitSeconds,
 }: RecordOrUploadProps) {
   const [recording, setRecording] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -112,6 +115,14 @@ export function RecordOrUpload({
         </p>
       )}
 
+      {/* Timer — only visible while recording */}
+      {recording && (
+        <RecordingTimer
+          durationSeconds={durationSeconds}
+          timeLimitSeconds={timeLimitSeconds}
+        />
+      )}
+
       <div className="flex flex-wrap gap-3">
         {!recording ? (
           <button
@@ -128,7 +139,7 @@ export function RecordOrUpload({
             onClick={stopRecording}
             className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white"
           >
-            Stop · {durationSeconds}s
+            Stop recording
           </button>
         )}
 

@@ -1,11 +1,11 @@
 import { Router } from "express";
+import type { Request, Response, NextFunction } from "express";
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import { getUserTosStatus, hasTosAccepted, CURRENT_TOS_VERSION } from "../lib/tos";
 
 const router = Router();
 
-// Only register the strategy when credentials are configured.
-// Without this guard the server crashes at startup with empty .env values.
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
@@ -45,7 +45,6 @@ router.get("/auth/google", (req, res, next) => {
     return;
   }
   passport.authenticate("google", {
-    // drive.file: create/manage files this app creates (supports public sharing)
     scope: ["profile", "email", "https://www.googleapis.com/auth/drive.file"],
     accessType: "offline",
     prompt: "consent",
@@ -62,8 +61,8 @@ router.get(
   },
 );
 
-// GET /auth/me — return current session user (or 401)
-router.get("/auth/me", (req, res) => {
+// GET /auth/me — return current session user plus live ToS status
+router.get("/auth/me", async (req: Request, res: Response) => {
   if (!req.user) {
     res.status(401).json({ error: "Not authenticated" });
     return;
@@ -75,7 +74,16 @@ router.get("/auth/me", (req, res) => {
     avatarUrl: string;
     accessToken: string;
   };
-  res.json({ googleId, name, email, avatarUrl });
+
+  try {
+    const tosStatus = await getUserTosStatus(googleId);
+    res.json({ googleId, name, email, avatarUrl, tosStatus });
+  } catch (err) {
+    console.error("[GET /auth/me] Failed to fetch ToS status:", err);
+    // Return user without ToS status rather than failing the whole auth check;
+    // the frontend will treat a missing tosStatus as not accepted.
+    res.json({ googleId, name, email, avatarUrl, tosStatus: { accepted: false, version: null } });
+  }
 });
 
 // POST /auth/logout — destroy session
@@ -86,5 +94,41 @@ router.post("/auth/logout", (req, res) => {
     });
   });
 });
+
+/**
+ * Middleware that blocks authenticated users who have not accepted the current ToS.
+ * Apply to any route that stores or returns user-associated data.
+ * Guests are not affected (they have no session and are checked client-side only).
+ */
+export async function requireTosAccepted(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const user = req.user as { googleId: string } | undefined;
+  if (!user) {
+    // No session — let requireAuth handle the 401 downstream
+    next();
+    return;
+  }
+
+  try {
+    const accepted = await hasTosAccepted(user.googleId);
+    if (!accepted) {
+      res.status(403).json({
+        error: "ToS acceptance required",
+        code: "TOS_NOT_ACCEPTED",
+        requiredVersion: CURRENT_TOS_VERSION,
+      });
+      return;
+    }
+  } catch (err) {
+    console.error("[requireTosAccepted]", err);
+    res.status(500).json({ error: "Could not verify Terms of Service acceptance." });
+    return;
+  }
+
+  next();
+}
 
 export default router;

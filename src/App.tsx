@@ -7,6 +7,7 @@ import { FeedbackReport } from "@/components/FeedbackReport";
 import { HistoryPage } from "@/components/HistoryPage";
 import { AnalyzingOverlay } from "@/components/AnalyzingOverlay";
 import { AuthChoiceScreen } from "@/components/AuthChoiceScreen";
+import { TosGateScreen } from "@/components/TosGateScreen";
 import { analyzeSpeech } from "@/lib/analyze";
 import { getHistoryStore } from "@/lib/history";
 import {
@@ -15,6 +16,7 @@ import {
   clearAuthChoice,
 } from "@/lib/auth";
 import type { GoogleUser } from "@/lib/auth";
+import { guestHasAcceptedVersion, fetchTos } from "@/lib/tos";
 import type { AppStep, SpeechBrief, SpeechFeedback, HistoryEntry } from "@/types/speech";
 import { EMPTY_BRIEF } from "@/types/speech";
 
@@ -47,7 +49,7 @@ function loadSavedBrief(): SpeechBrief {
   }
 }
 
-type AuthStatus = "loading" | "choosing" | "ready";
+type AuthStatus = "loading" | "choosing" | "tos" | "ready";
 
 export default function App() {
   const [authStatus, setAuthStatus] = useState<AuthStatus>("loading");
@@ -60,25 +62,43 @@ export default function App() {
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [savedEntryId, setSavedEntryId] = useState<string | null>(null);
 
-  // On mount: check for existing session, then decide whether to show auth choice
+  // On mount: resolve session, then check ToS acceptance before granting access
   useEffect(() => {
-    // Check if Google redirected back with ?auth=success
+    // Clean up the ?auth=success query param Google appends after OAuth redirect
     const params = new URLSearchParams(window.location.search);
     if (params.get("auth") === "success") {
       window.history.replaceState({}, "", window.location.pathname);
     }
 
-    getCurrentUser().then((user) => {
+    getCurrentUser().then(async (user) => {
       if (user) {
         setCurrentUser(user);
-        setAuthStatus("ready");
+        // Server already checked the current ToS version in /auth/me
+        if (!user.tosStatus.accepted) {
+          setAuthStatus("tos");
+        } else {
+          setAuthStatus("ready");
+        }
         return;
       }
-      // No active session — check if the user has already made an auth choice
-      if (hasAuthChoice()) {
-        setAuthStatus("ready");
-      } else {
+
+      // No active session — guest or first-time visitor
+      if (!hasAuthChoice()) {
         setAuthStatus("choosing");
+        return;
+      }
+
+      // Returning guest: check if they have accepted the current ToS version locally
+      try {
+        const { version } = await fetchTos();
+        if (guestHasAcceptedVersion(version)) {
+          setAuthStatus("ready");
+        } else {
+          setAuthStatus("tos");
+        }
+      } catch {
+        // If the ToS fetch fails, let them through rather than hard-blocking the app
+        setAuthStatus("ready");
       }
     });
   }, []);
@@ -155,7 +175,32 @@ export default function App() {
   }
 
   if (authStatus === "choosing") {
-    return <AuthChoiceScreen onGuestChosen={() => setAuthStatus("ready")} />;
+    return (
+      <AuthChoiceScreen
+        onGuestChosen={async () => {
+          // New guest: check if they need to accept the ToS before entering
+          try {
+            const { version } = await fetchTos();
+            if (guestHasAcceptedVersion(version)) {
+              setAuthStatus("ready");
+            } else {
+              setAuthStatus("tos");
+            }
+          } catch {
+            setAuthStatus("ready");
+          }
+        }}
+      />
+    );
+  }
+
+  if (authStatus === "tos") {
+    return (
+      <TosGateScreen
+        isGuest={currentUser === null}
+        onAccepted={() => setAuthStatus("ready")}
+      />
+    );
   }
 
   const isGuest = currentUser === null;

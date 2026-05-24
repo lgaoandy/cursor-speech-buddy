@@ -6,6 +6,7 @@ import passport from "passport";
 import analyzeRouter from "./routes/analyze";
 import authRouter from "./routes/auth";
 import historyRouter from "./routes/history";
+import tosRouter from "./routes/tos";
 
 const PORT = process.env.PORT ?? "3001";
 const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "http://localhost:5173")
@@ -46,6 +47,7 @@ app.get("/health", (_req, res) => {
 app.use(analyzeRouter);
 app.use(authRouter);
 app.use(historyRouter);
+app.use(tosRouter);
 
 app.listen(Number(PORT), () => {
   console.log(`API running on http://localhost:${PORT}`);

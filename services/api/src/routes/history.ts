@@ -11,6 +11,7 @@ import {
   updateEntryAudioUrl,
 } from "../lib/firestore";
 import { uploadAudioToDrive, deleteAudioFromDrive, streamAudioFromDrive } from "../lib/drive";
+import { requireTosAccepted } from "./auth";
 
 const upload = multer({ dest: "uploads/" });
 const router = Router();
@@ -38,6 +39,9 @@ function historyError(res: Response, err: unknown, route: string): void {
     error: "Cloud history unavailable. Check Firebase credentials in services/api/.env",
   });
 }
+
+// All history routes require both authentication and ToS acceptance
+router.use(requireTosAccepted);
 
 // GET /history — fetch all entries for the signed-in user
 router.get("/history", async (req, res) => {

@@ -1,3 +1,5 @@
+import type { TosStatus } from "@/lib/tos";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 const GUEST_KEY = "speech-buddy:auth-choice";
 
@@ -6,6 +8,7 @@ export interface GoogleUser {
   name: string;
   email: string;
   avatarUrl: string;
+  tosStatus: TosStatus;
 }
 
 export type AuthState =
@@ -18,7 +21,14 @@ export async function getCurrentUser(): Promise<GoogleUser | null> {
   try {
     const res = await fetch(`${API_URL}/auth/me`, { credentials: "include" });
     if (!res.ok) return null;
-    return res.json() as Promise<GoogleUser>;
+    const data = (await res.json()) as Omit<GoogleUser, "tosStatus"> & {
+      tosStatus?: TosStatus;
+    };
+    // Default to not accepted if the field is missing (e.g. Firestore read failed)
+    return {
+      ...data,
+      tosStatus: data.tosStatus ?? { accepted: false, version: null },
+    };
   } catch {
     return null;
   }

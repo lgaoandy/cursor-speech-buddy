@@ -1,6 +1,118 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { RecordingTimer } from "@/components/RecordingTimer";
 
+// ─── Mic error helpers ────────────────────────────────────────────────────────
+
+type MicErrorKind = "denied" | "not-found" | "in-use" | "insecure" | "unknown";
+
+function classifyMicError(err: unknown): MicErrorKind {
+  if (!(err instanceof DOMException)) return "unknown";
+  switch (err.name) {
+    case "NotAllowedError":
+    case "PermissionDeniedError":
+      return "denied";
+    case "NotFoundError":
+    case "DevicesNotFoundError":
+      return "not-found";
+    case "NotReadableError":
+    case "AbortError":
+      return "in-use";
+    case "SecurityError":
+      return "insecure";
+    default:
+      return "unknown";
+  }
+}
+
+function detectPlatform(): "ios" | "android" | "desktop" {
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad|iPod/i.test(ua)) return "ios";
+  if (/Android/i.test(ua)) return "android";
+  return "desktop";
+}
+
+interface MicErrorInfo {
+  title: string;
+  steps: string[];
+}
+
+function getMicErrorInfo(kind: MicErrorKind): MicErrorInfo {
+  const platform = detectPlatform();
+
+  if (kind === "denied") {
+    if (platform === "ios") {
+      return {
+        title: "Microphone access blocked",
+        steps: [
+          "Open the iOS Settings app",
+          'Scroll to Safari (or your browser)',
+          'Tap "Microphone" and set it to Allow',
+          "Return here and try again",
+        ],
+      };
+    }
+    if (platform === "android") {
+      return {
+        title: "Microphone access blocked",
+        steps: [
+          "Tap the lock icon in your browser address bar",
+          'Tap "Permissions" → "Microphone"',
+          'Change it to "Allow"',
+          "Refresh the page and try again",
+        ],
+      };
+    }
+    return {
+      title: "Microphone access blocked",
+      steps: [
+        "Click the lock icon in your browser address bar",
+        'Find "Microphone" and set it to Allow',
+        "Refresh the page and try again",
+      ],
+    };
+  }
+
+  if (kind === "not-found") {
+    return {
+      title: "No microphone detected",
+      steps: [
+        "Check that a microphone is plugged in or enabled",
+        "Try using headphones with a built-in mic",
+        "Or upload an audio file instead",
+      ],
+    };
+  }
+
+  if (kind === "in-use") {
+    return {
+      title: "Microphone is in use by another app",
+      steps: [
+        "Close any other app using your mic (Zoom, Teams, etc.)",
+        "Try again",
+      ],
+    };
+  }
+
+  if (kind === "insecure") {
+    return {
+      title: "Microphone requires a secure connection",
+      steps: [
+        "Make sure you are accessing this page over HTTPS",
+        "Contact support if the problem persists",
+      ],
+    };
+  }
+
+  return {
+    title: "Microphone unavailable",
+    steps: [
+      "Check your browser and OS microphone permissions",
+      "Try refreshing the page",
+      "Or upload an audio file instead",
+    ],
+  };
+}
+
 interface RecordOrUploadProps {
   onBack: () => void;
   onAnalyze: (audio: Blob, durationSeconds: number) => void;
@@ -20,7 +132,7 @@ export function RecordOrUpload({
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [durationSeconds, setDurationSeconds] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const [micError, setMicError] = useState<MicErrorInfo | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -49,8 +161,21 @@ export function RecordOrUpload({
     setDurationSeconds(duration);
   };
 
+  // Spacebar toggles recording — but only when focus is NOT in a text input
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code !== "Space" || e.repeat || isAnalyzing) return;
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      e.preventDefault();
+      recording ? stopRecording() : void startRecording();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [recording, isAnalyzing]);
+
   const startRecording = async () => {
-    setError(null);
+    setMicError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
@@ -81,8 +206,8 @@ export function RecordOrUpload({
           Math.round((Date.now() - startedAtRef.current) / 1000),
         );
       }, 500);
-    } catch {
-      setError("Microphone access denied or unavailable.");
+    } catch (err) {
+      setMicError(getMicErrorInfo(classifyMicError(err)));
     }
   };
 
@@ -92,13 +217,14 @@ export function RecordOrUpload({
 
   const handleFile = (file: File | null) => {
     if (!file) return;
-    setError(null);
+    setMicError(null);
 
     const FIFTY_MB = 50 * 1024 * 1024;
     if (file.size > FIFTY_MB) {
-      setError(
-        `File is ${(file.size / 1024 / 1024).toFixed(1)} MB — maximum upload size is 50 MB. Try a shorter or compressed recording.`,
-      );
+      setMicError({
+        title: `File too large (${(file.size / 1024 / 1024).toFixed(1)} MB)`,
+        steps: ["Maximum upload size is 50 MB.", "Try a shorter or compressed recording."],
+      });
       return;
     }
     const url = URL.createObjectURL(file);
@@ -116,13 +242,26 @@ export function RecordOrUpload({
     <div className="flex flex-col gap-6">
       <p className="text-sm text-[var(--muted)]">
         Record a practice run or upload an audio file. Keep demos under 2
-        minutes for faster analysis.
+        minutes for faster analysis.{" "}
+        <span className="text-xs">
+          Press <kbd className="rounded border border-[var(--border)] bg-[var(--card)] px-1 py-0.5 font-mono text-xs">Space</kbd> to start / stop.
+        </span>
       </p>
 
-      {error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-          {error}
-        </p>
+      {/* Screen reader announcement for recording state changes */}
+      <p className="sr-only" aria-live="assertive" aria-atomic="true">
+        {recording ? "Recording started" : audioBlob ? "Recording stopped" : ""}
+      </p>
+
+      {micError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+          <p className="mb-2 font-semibold">{micError.title}</p>
+          <ol className="list-inside list-decimal space-y-1 text-red-700">
+            {micError.steps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+        </div>
       )}
 
       {/* Timer — only visible while recording */}
@@ -140,6 +279,7 @@ export function RecordOrUpload({
             type="button"
             onClick={startRecording}
             disabled={isAnalyzing}
+            aria-pressed={false}
             className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white"
           >
             Start recording
@@ -148,6 +288,7 @@ export function RecordOrUpload({
           <button
             type="button"
             onClick={stopRecording}
+            aria-pressed={true}
             className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white"
           >
             Stop recording

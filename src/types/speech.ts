@@ -63,7 +63,15 @@ export interface SpeechFeedback {
   overallSummary: string;
 }
 
-export type AppStep = "brief" | "practice" | "feedback";
+export type AppStep = "brief" | "practice" | "feedback" | "history";
+
+export interface HistoryEntry {
+  id: string;
+  createdAt: string;
+  brief: SpeechBrief;
+  feedback: SpeechFeedback;
+  averageScore: number;
+}
 
 export const EMPTY_BRIEF: SpeechBrief = {
   format: "toastmasters",

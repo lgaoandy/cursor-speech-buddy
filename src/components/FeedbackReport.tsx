@@ -4,6 +4,7 @@ import { EVALUATION_CATEGORIES } from "@/lib/toastmasters";
 interface FeedbackReportProps {
   brief: SpeechBrief;
   feedback: SpeechFeedback;
+  savedEntryId: string | null;
   onStartOver: () => void;
   onPracticeAgain: () => void;
 }
@@ -253,6 +254,7 @@ function parseSummaryBullets(text: string): string[] {
 export function FeedbackReport({
   brief,
   feedback,
+  savedEntryId,
   onStartOver,
   onPracticeAgain,
 }: FeedbackReportProps) {
@@ -469,6 +471,12 @@ export function FeedbackReport({
           ))}
         </div>
       </details>
+
+      {savedEntryId && (
+        <p className="flex items-center gap-1.5 text-xs text-green-700">
+          <span aria-hidden>✓</span> Saved to history
+        </p>
+      )}
 
       <div className="flex flex-wrap gap-3">
         <button

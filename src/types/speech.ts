@@ -71,6 +71,7 @@ export interface HistoryEntry {
   brief: SpeechBrief;
   feedback: SpeechFeedback;
   averageScore: number;
+  audioUrl?: string;
 }
 
 export const EMPTY_BRIEF: SpeechBrief = {

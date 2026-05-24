@@ -27,19 +27,19 @@ export function buildAnalysisUserPrompt(
   durationSeconds: number,
   fillerCount: number,
 ): string {
-  const limitSeconds = brief.timeLimitMinutes * 60;
+  const { minSeconds, maxSeconds } = brief;
   return JSON.stringify({
     brief: {
       format: brief.format,
       title: brief.title,
       description: brief.description,
       takeaways: brief.takeaways,
-      timeLimitMinutes: brief.timeLimitMinutes,
+      timeLimitSeconds: { min: minSeconds, max: maxSeconds },
       watchFor: brief.watchFor,
     },
     metrics: {
       durationSeconds,
-      limitSeconds,
+      timeLimitSeconds: { min: minSeconds, max: maxSeconds },
       fillerCount,
     },
     transcript,

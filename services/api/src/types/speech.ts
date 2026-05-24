@@ -62,3 +62,12 @@ export interface SpeechFeedback {
   takeawayAlignment: TakeawayAlignment[];
   overallSummary: string;
 }
+
+export interface HistoryEntry {
+  id: string;
+  createdAt: string;
+  brief: SpeechBrief;
+  feedback: SpeechFeedback;
+  averageScore: number;
+  audioUrl?: string;
+}

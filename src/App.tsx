@@ -6,8 +6,15 @@ import { RecordOrUpload } from "@/components/RecordOrUpload";
 import { FeedbackReport } from "@/components/FeedbackReport";
 import { HistoryPage } from "@/components/HistoryPage";
 import { AnalyzingOverlay } from "@/components/AnalyzingOverlay";
+import { AuthChoiceScreen } from "@/components/AuthChoiceScreen";
 import { analyzeSpeech } from "@/lib/analyze";
-import { historyStore } from "@/lib/history";
+import { getHistoryStore } from "@/lib/history";
+import {
+  getCurrentUser,
+  hasAuthChoice,
+  clearAuthChoice,
+} from "@/lib/auth";
+import type { GoogleUser } from "@/lib/auth";
 import type { AppStep, SpeechBrief, SpeechFeedback, HistoryEntry } from "@/types/speech";
 import { EMPTY_BRIEF } from "@/types/speech";
 
@@ -19,7 +26,6 @@ function loadSavedBrief(): SpeechBrief {
     if (!raw) return EMPTY_BRIEF;
     const parsed = JSON.parse(raw) as Record<string, unknown>;
 
-    // Migrate minMinutes/maxMinutes → minSeconds/maxSeconds
     const minSeconds =
       typeof parsed.minSeconds === "number" && parsed.minSeconds > 0
         ? parsed.minSeconds
@@ -41,13 +47,43 @@ function loadSavedBrief(): SpeechBrief {
   }
 }
 
+type AuthStatus = "loading" | "choosing" | "ready";
+
 export default function App() {
+  const [authStatus, setAuthStatus] = useState<AuthStatus>("loading");
+  const [currentUser, setCurrentUser] = useState<GoogleUser | null>(null);
+
   const [step, setStep] = useState<AppStep>("brief");
   const [brief, setBrief] = useState<SpeechBrief>(loadSavedBrief);
   const [feedback, setFeedback] = useState<SpeechFeedback | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [savedEntryId, setSavedEntryId] = useState<string | null>(null);
+
+  // On mount: check for existing session, then decide whether to show auth choice
+  useEffect(() => {
+    // Check if Google redirected back with ?auth=success
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("auth") === "success") {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+
+    getCurrentUser().then((user) => {
+      if (user) {
+        setCurrentUser(user);
+        setAuthStatus("ready");
+        return;
+      }
+      // No active session — check if the user has already made an auth choice
+      if (hasAuthChoice()) {
+        setAuthStatus("ready");
+      } else {
+        setAuthStatus("choosing");
+      }
+    });
+  }, []);
+
+  const historyStore = getHistoryStore(currentUser !== null);
 
   // Persist brief to localStorage whenever it changes
   useEffect(() => {
@@ -69,10 +105,14 @@ export default function App() {
             ((result.content.score + result.delivery.score + result.language.score) / 3) * 10,
           ) / 10,
       };
-      await historyStore.save(entry);
-      // Save audio blob alongside the entry (Option B — IndexedDB)
-      await historyStore.saveAudio?.(entry.id, audio);
-      setSavedEntryId(entry.id);
+      try {
+        await historyStore.save(entry);
+        await historyStore.saveAudio?.(entry.id, audio);
+        setSavedEntryId(entry.id);
+      } catch (saveErr) {
+        console.warn("[handleAnalyze] History save failed:", saveErr);
+        setSavedEntryId(null);
+      }
       setFeedback(result);
       setStep("feedback");
     } catch (err) {
@@ -100,10 +140,35 @@ export default function App() {
     setStep("feedback");
   };
 
+  const handleSignedOut = () => {
+    setCurrentUser(null);
+    clearAuthChoice();
+    setAuthStatus("choosing");
+  };
+
+  if (authStatus === "loading") {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-[var(--muted)] text-sm">
+        Loading…
+      </div>
+    );
+  }
+
+  if (authStatus === "choosing") {
+    return <AuthChoiceScreen onGuestChosen={() => setAuthStatus("ready")} />;
+  }
+
+  const isGuest = currentUser === null;
+
   return (
     <div className="flex min-h-screen flex-col">
       {isAnalyzing && <AnalyzingOverlay />}
-      <Header onHistoryClick={() => setStep("history")} />
+      <Header
+        user={currentUser}
+        isGuest={isGuest}
+        onHistoryClick={() => setStep("history")}
+        onSignedOut={handleSignedOut}
+      />
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8">
         {step !== "history" && <StepIndicator current={step} />}
 
@@ -161,8 +226,14 @@ export default function App() {
 
         {step === "history" && (
           <HistoryPage
+            historyStore={historyStore}
+            isGuest={isGuest}
             onBack={() => setStep("brief")}
             onViewEntry={viewHistoryEntry}
+            onSignIn={() => {
+              // Redirect to Google — after auth the page reloads and session resolves
+              window.location.href = `${import.meta.env.VITE_API_URL ?? ""}/auth/google`;
+            }}
           />
         )}
       </main>

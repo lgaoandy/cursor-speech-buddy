@@ -1,6 +1,7 @@
 export type SpeechFormat =
   | "toastmasters"
   | "pitch"
+  | "elevator-pitch"
   | "wedding"
   | "keynote"
   | "status-update"
@@ -16,23 +17,26 @@ export type WatchForCriteria =
 
 export interface SpeechBrief {
   format: SpeechFormat;
+  toastmastersPath?: string;
   title: string;
   description: string;
   takeaways: [string, string, string];
-  timeLimitMinutes: number;
+  minSeconds: number;
+  maxSeconds: number;
   watchFor: WatchForCriteria[];
 }
 
 export interface TimingMetrics {
   durationSeconds: number;
-  limitSeconds: number;
-  withinLimit: boolean;
-  percentOfLimit: number;
+  minSeconds: number;
+  maxSeconds: number;
+  withinRange: boolean;
+  percentOfMax: number;
 }
 
 export interface FillerMetrics {
   count: number;
-  examples: string[];
+  breakdown: Record<string, number>;
 }
 
 export interface CategoryFeedback {
@@ -59,13 +63,22 @@ export interface SpeechFeedback {
   overallSummary: string;
 }
 
-export type AppStep = "brief" | "practice" | "feedback";
+export type AppStep = "brief" | "practice" | "feedback" | "history";
+
+export interface HistoryEntry {
+  id: string;
+  createdAt: string;
+  brief: SpeechBrief;
+  feedback: SpeechFeedback;
+  averageScore: number;
+}
 
 export const EMPTY_BRIEF: SpeechBrief = {
   format: "toastmasters",
   title: "",
   description: "",
   takeaways: ["", "", ""],
-  timeLimitMinutes: 5,
+  minSeconds: 240,
+  maxSeconds: 360,
   watchFor: ["grammar", "timing", "fillers", "structure"],
 };

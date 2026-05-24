@@ -13,10 +13,16 @@ export async function transcribeAudio(
   originalName: string,
 ): Promise<string> {
   const stat = fs.statSync(filePath);
-  // Groq enforces a 25 MB limit on audio files
-  const MAX_BYTES = 25 * 1024 * 1024;
-  if (stat.size > MAX_BYTES) {
-    throw new Error("Audio file exceeds the 25 MB limit.");
+  // Groq's Whisper API enforces a hard 25 MB limit — files up to 50 MB are
+  // accepted by our server but anything over 25 MB will fail here with a
+  // clear message rather than a cryptic API error.
+  const GROQ_MAX_BYTES = 25 * 1024 * 1024;
+  if (stat.size > GROQ_MAX_BYTES) {
+    const sizeMB = (stat.size / 1024 / 1024).toFixed(1);
+    throw new Error(
+      `Audio file is ${sizeMB} MB — Groq Whisper's limit is 25 MB. ` +
+        "Try compressing or trimming the recording before uploading.",
+    );
   }
 
   // Wrap stream with the original filename so Groq knows the format (webm, mp3, etc.)
@@ -29,10 +35,59 @@ export async function transcribeAudio(
   });
 
   // groq-sdk returns a string when response_format is "text"
-  const text = transcription as unknown as string;
-  if (!text || text.trim().length === 0) {
+  const raw = (transcription as unknown as string).trim();
+  if (!raw) {
     throw new Error("Whisper returned an empty transcript. Check audio quality.");
   }
 
-  return text.trim();
+  const cleaned = removeWhisperHallucinations(raw);
+  if (!cleaned) {
+    throw new Error(
+      "No real speech was detected. Please record at least a few seconds of audio.",
+    );
+  }
+
+  return cleaned;
+}
+
+/**
+ * Whisper commonly hallucinates short filler phrases on silent or near-silent
+ * audio. Strip these when they appear as the entire transcript or as a
+ * trailing sentence that wasn't actually spoken.
+ */
+function removeWhisperHallucinations(text: string): string {
+  // Phrases Whisper invents when there is little/no audio content
+  const HALLUCINATIONS = [
+    /^thank you\.?$/i,
+    /^thank you for watching\.?$/i,
+    /^thank you for listening\.?$/i,
+    /^thanks for watching\.?$/i,
+    /^thanks for listening\.?$/i,
+    /^you\.?$/i,
+    /^\[silence\]$/i,
+    /^\[music\]$/i,
+    /^\[applause\]$/i,
+    /^\(silence\)$/i,
+  ];
+
+  // If the whole transcript is a hallucination, return empty string
+  for (const pattern of HALLUCINATIONS) {
+    if (pattern.test(text.trim())) return "";
+  }
+
+  // Strip a hallucinated trailing sentence (e.g. real speech + "\nThank you.")
+  const trailingHallucinations = [
+    /\s+thank you\.?$/i,
+    /\s+thank you for watching\.?$/i,
+    /\s+thank you for listening\.?$/i,
+    /\s+thanks for watching\.?$/i,
+    /\s+thanks for listening\.?$/i,
+  ];
+
+  let result = text;
+  for (const pattern of trailingHallucinations) {
+    result = result.replace(pattern, "");
+  }
+
+  return result.trim();
 }

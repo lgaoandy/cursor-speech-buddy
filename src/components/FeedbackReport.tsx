@@ -8,17 +8,51 @@ interface FeedbackReportProps {
   onPracticeAgain: () => void;
 }
 
-function ScoreBadge({ score }: { score: number }) {
-  const color =
-    score >= 4
-      ? "bg-green-100 text-green-800"
-      : score >= 3
-        ? "bg-amber-100 text-amber-800"
-        : "bg-red-100 text-red-800";
+const RING_RADIUS = 20;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+
+function ScoreRing({ score }: { score: number }) {
+  const fill = (score / 5) * RING_CIRCUMFERENCE;
+  const gap = RING_CIRCUMFERENCE - fill;
+
+  const strokeColor =
+    score >= 4 ? "#16a34a" : score >= 3 ? "#d97706" : "#dc2626";
+
   return (
-    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${color}`}>
-      {score}/5
-    </span>
+    <div className="relative flex shrink-0 items-center justify-center" style={{ width: 56, height: 56 }}>
+      <svg width="56" height="56" viewBox="0 0 56 56" fill="none" aria-hidden>
+        {/* Track */}
+        <circle
+          cx="28"
+          cy="28"
+          r={RING_RADIUS}
+          stroke="var(--border)"
+          strokeWidth="4"
+          fill="none"
+        />
+        {/* Progress arc — starts at 12 o'clock */}
+        <circle
+          cx="28"
+          cy="28"
+          r={RING_RADIUS}
+          stroke={strokeColor}
+          strokeWidth="4"
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray={`${fill} ${gap}`}
+          transform="rotate(-90 28 28)"
+          style={{ transition: "stroke-dasharray 0.6s ease" }}
+        />
+      </svg>
+      {/* Score label centered inside ring */}
+      <span
+        className="absolute text-sm font-bold"
+        style={{ color: strokeColor }}
+        aria-label={`Score ${score} out of 5`}
+      >
+        {score}/5
+      </span>
+    </div>
   );
 }
 
@@ -38,7 +72,7 @@ function CategoryCard({
           <h3 className="font-semibold">{title}</h3>
           <p className="text-xs text-[var(--muted)]">{hint}</p>
         </div>
-        <ScoreBadge score={data.score} />
+        <ScoreRing score={data.score} />
       </div>
       <p className="mb-3 text-sm">{data.summary}</p>
       {data.strengths.length > 0 && (

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { StepIndicator } from "@/components/StepIndicator";
 import { SpeechBriefForm } from "@/components/SpeechBriefForm";
@@ -9,12 +9,30 @@ import { analyzeSpeech } from "@/lib/analyze";
 import type { AppStep, SpeechBrief, SpeechFeedback } from "@/types/speech";
 import { EMPTY_BRIEF } from "@/types/speech";
 
+const BRIEF_STORAGE_KEY = "speech-buddy:brief-draft";
+
+function loadSavedBrief(): SpeechBrief {
+  try {
+    const raw = localStorage.getItem(BRIEF_STORAGE_KEY);
+    if (!raw) return EMPTY_BRIEF;
+    return JSON.parse(raw) as SpeechBrief;
+  } catch {
+    // Corrupt storage — ignore and start fresh
+    return EMPTY_BRIEF;
+  }
+}
+
 export default function App() {
   const [step, setStep] = useState<AppStep>("brief");
-  const [brief, setBrief] = useState<SpeechBrief>(EMPTY_BRIEF);
+  const [brief, setBrief] = useState<SpeechBrief>(loadSavedBrief);
   const [feedback, setFeedback] = useState<SpeechFeedback | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+
+  // Persist brief to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem(BRIEF_STORAGE_KEY, JSON.stringify(brief));
+  }, [brief]);
 
   const handleAnalyze = async (audio: Blob, durationSeconds: number) => {
     setIsAnalyzing(true);
@@ -33,6 +51,7 @@ export default function App() {
   };
 
   const startOver = () => {
+    localStorage.removeItem(BRIEF_STORAGE_KEY);
     setBrief(EMPTY_BRIEF);
     setFeedback(null);
     setAnalyzeError(null);
@@ -74,6 +93,7 @@ export default function App() {
               onBack={() => setStep("brief")}
               onAnalyze={handleAnalyze}
               isAnalyzing={isAnalyzing}
+              timeLimitSeconds={brief.timeLimitMinutes * 60}
             />
           </section>
         )}

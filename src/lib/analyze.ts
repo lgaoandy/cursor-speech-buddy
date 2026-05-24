@@ -5,14 +5,15 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 export function countFillers(transcript: string): {
   count: number;
-  examples: string[];
+  breakdown: Record<string, number>;
 } {
   const matches = transcript.match(FILLER_PATTERNS) ?? [];
-  const examples = [...new Set(matches.map((m) => m.toLowerCase()))].slice(
-    0,
-    8,
-  );
-  return { count: matches.length, examples };
+  const breakdown: Record<string, number> = {};
+  for (const match of matches) {
+    const word = match.toLowerCase();
+    breakdown[word] = (breakdown[word] ?? 0) + 1;
+  }
+  return { count: matches.length, breakdown };
 }
 
 /** Mock feedback for local dev when no API is running */
@@ -20,36 +21,38 @@ export function mockFeedback(
   brief: SpeechBrief,
   durationSeconds: number,
 ): SpeechFeedback {
-  const limitSeconds = brief.timeLimitMinutes * 60;
+  const minSeconds = brief.minSeconds;
+  const maxSeconds = brief.maxSeconds;
   const transcript =
     "[Demo mode] Connect VITE_API_URL to your backend for real transcription and AI feedback.";
   const fillers = countFillers(
-    "um so today uh I want to talk about like you know our three goals",
+    "um so today uh I want to talk about like you know sort of our three goals basically",
   );
 
   return {
     transcript,
     timing: {
       durationSeconds,
-      limitSeconds,
-      withinLimit: durationSeconds <= limitSeconds,
-      percentOfLimit: Math.round((durationSeconds / limitSeconds) * 100),
+      minSeconds,
+      maxSeconds,
+      withinRange: durationSeconds >= minSeconds && durationSeconds <= maxSeconds,
+      percentOfMax: Math.round((durationSeconds / maxSeconds) * 100),
     },
     fillers,
     content: {
-      score: 3,
+      score: 6,
       summary: "Placeholder — wire up the analyze API.",
       strengths: ["Clear brief captured"],
       improvements: ["Add a real practice recording"],
     },
     delivery: {
-      score: 3,
+      score: 6,
       summary: "Delivery analysis pending API.",
       strengths: [],
       improvements: ["Record a full practice run"],
     },
     language: {
-      score: 3,
+      score: 6,
       summary: "Language analysis pending API.",
       strengths: [],
       improvements: [],
@@ -84,8 +87,15 @@ export async function analyzeSpeech(
   });
 
   if (!res.ok) {
-    const message = await res.text();
-    throw new Error(message || `Analysis failed (${res.status})`);
+    const body = await res.text();
+    let message = `Analysis failed (${res.status})`;
+    try {
+      const parsed = JSON.parse(body) as { error?: string };
+      if (parsed.error) message = parsed.error;
+    } catch {
+      if (body.trim()) message = body.trim();
+    }
+    throw new Error(message);
   }
 
   return res.json() as Promise<SpeechFeedback>;

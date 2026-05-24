@@ -117,14 +117,16 @@ interface RecordOrUploadProps {
   onBack: () => void;
   onAnalyze: (audio: Blob, durationSeconds: number) => void;
   isAnalyzing: boolean;
-  timeLimitSeconds: number;
+  minSeconds: number;
+  maxSeconds: number;
 }
 
 export function RecordOrUpload({
   onBack,
   onAnalyze,
   isAnalyzing,
-  timeLimitSeconds,
+  minSeconds,
+  maxSeconds,
 }: RecordOrUploadProps) {
   const [recording, setRecording] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -216,6 +218,15 @@ export function RecordOrUpload({
   const handleFile = (file: File | null) => {
     if (!file) return;
     setMicError(null);
+
+    const FIFTY_MB = 50 * 1024 * 1024;
+    if (file.size > FIFTY_MB) {
+      setMicError({
+        title: `File too large (${(file.size / 1024 / 1024).toFixed(1)} MB)`,
+        steps: ["Maximum upload size is 50 MB.", "Try a shorter or compressed recording."],
+      });
+      return;
+    }
     const url = URL.createObjectURL(file);
     setAudioUrl(url);
     setAudioBlob(file);
@@ -257,7 +268,8 @@ export function RecordOrUpload({
       {recording && (
         <RecordingTimer
           durationSeconds={durationSeconds}
-          timeLimitSeconds={timeLimitSeconds}
+          minSeconds={minSeconds}
+          maxSeconds={maxSeconds}
         />
       )}
 

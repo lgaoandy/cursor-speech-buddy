@@ -1,11 +1,15 @@
 export const FILLER_PATTERNS =
-  /\b(um+|uh+|ah+|er+|like|you know|sort of|kind of)\b/gi;
+  /\b(um+|uh+|ah+|er+|erm+|like|you know|sort of|kind of|basically|literally|actually|right\?|yeah)\b/gi;
 
 export function countFillers(transcript: string): {
   count: number;
-  examples: string[];
+  breakdown: Record<string, number>;
 } {
   const matches = transcript.match(FILLER_PATTERNS) ?? [];
-  const examples = [...new Set(matches.map((m) => m.toLowerCase()))].slice(0, 8);
-  return { count: matches.length, examples };
+  const breakdown: Record<string, number> = {};
+  for (const match of matches) {
+    const word = match.toLowerCase();
+    breakdown[word] = (breakdown[word] ?? 0) + 1;
+  }
+  return { count: matches.length, breakdown };
 }

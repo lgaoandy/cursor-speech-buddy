@@ -63,7 +63,7 @@ export function TimePickerModal({
               onChange={(e) =>
                 setMinutes(clampMinutes(parseInt(e.target.value) || 0))
               }
-              className="w-24 rounded-xl border-2 border-[var(--accent)] bg-[var(--accent-muted)] text-center font-mono font-bold text-[var(--accent)] outline-none focus:border-[var(--accent)]"
+              className="w-24 rounded-xl border-2 border-[var(--accent)] bg-[var(--accent-muted)] text-center font-mono font-bold text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
               style={{ fontSize: "3.5rem", lineHeight: 1.1 }}
             />
           </div>
@@ -87,7 +87,7 @@ export function TimePickerModal({
               onChange={(e) =>
                 setSeconds(clampSeconds(parseInt(e.target.value) || 0))
               }
-              className="w-24 rounded-xl border-2 border-[var(--accent)] bg-[var(--accent-muted)] text-center font-mono font-bold text-[var(--accent)] outline-none focus:border-[var(--accent)]"
+              className="w-24 rounded-xl border-2 border-[var(--accent)] bg-[var(--accent-muted)] text-center font-mono font-bold text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
               style={{ fontSize: "3.5rem", lineHeight: 1.1 }}
             />
           </div>
@@ -109,7 +109,7 @@ export function TimePickerModal({
             type="button"
             onClick={handleConfirm}
             disabled={!isValid}
-            className="flex-1 rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-white disabled:opacity-40"
+            className="flex-1 rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-bold text-[var(--accent-fg)] disabled:opacity-40"
           >
             Set
           </button>

@@ -25,7 +25,7 @@ export function AnalyzingOverlay() {
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-10 bg-white/90 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-10 backdrop-blur-sm" style={{ backgroundColor: "color-mix(in srgb, var(--background) 92%, transparent)" }}>
       <div className="flex flex-col items-center gap-8">
 
         {/* Waveform bars */}

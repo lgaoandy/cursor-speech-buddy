@@ -1,6 +1,52 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { historyStore } from "@/lib/history";
 import type { HistoryEntry } from "@/types/speech";
+
+function AudioPlayer({ entryId }: { entryId: string }) {
+  const [url, setUrl] = useState<string | null | "loading">(null);
+  const urlRef = useRef<string | null>(null);
+
+  // Revoke the objectURL when the component unmounts to free memory
+  useEffect(() => {
+    return () => {
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+    };
+  }, []);
+
+  const loadAudio = async () => {
+    if (url !== null) return;
+    setUrl("loading");
+    const result = await historyStore.getAudioUrl?.(entryId) ?? null;
+    urlRef.current = result;
+    setUrl(result);
+  };
+
+  if (url === null) {
+    return (
+      <button
+        type="button"
+        onClick={loadAudio}
+        className="mt-2 text-xs text-[var(--accent)] underline underline-offset-2"
+      >
+        ▶ Play recording
+      </button>
+    );
+  }
+
+  if (url === "loading") {
+    return <p className="mt-2 text-xs text-[var(--muted)]">Loading…</p>;
+  }
+
+  if (!url) {
+    return <p className="mt-2 text-xs text-[var(--muted)]">No recording saved</p>;
+  }
+
+  return (
+    <audio controls src={url} className="mt-2 w-full">
+      <track kind="captions" />
+    </audio>
+  );
+}
 
 const RING_RADIUS = 16;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
@@ -152,7 +198,7 @@ export function HistoryPage({ onBack, onViewEntry }: HistoryPageProps) {
                     {formatDate(entry.createdAt)}
                   </p>
 
-                  <div className="mt-2 flex flex-wrap gap-3 text-xs text-[var(--muted)]">
+                  <div className="mt-2 flex flex-wrap gap-3 text-sm text-[var(--muted)]">
                     <span>
                       ⏱ {formatDuration(entry.feedback.timing.durationSeconds)}
                       {" "}
@@ -170,10 +216,14 @@ export function HistoryPage({ onBack, onViewEntry }: HistoryPageProps) {
                         key={cat}
                         className="rounded-full border border-[var(--border)] px-2 py-0.5 capitalize"
                       >
-                        {cat} {entry.feedback[cat].score}/5
+                        {cat} {entry.feedback[cat].score}
                       </span>
                     ))}
                   </div>
+
+                  {historyStore.getAudioUrl && (
+                    <AudioPlayer entryId={entry.id} />
+                  )}
                 </div>
 
                 <div className="flex shrink-0 flex-col gap-2">

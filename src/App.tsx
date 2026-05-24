@@ -53,6 +53,8 @@ export default function App() {
           ) / 10,
       };
       await historyStore.save(entry);
+      // Save audio blob alongside the entry (Option B — IndexedDB)
+      await historyStore.saveAudio?.(entry.id, audio);
       setSavedEntryId(entry.id);
       setFeedback(result);
       setStep("feedback");

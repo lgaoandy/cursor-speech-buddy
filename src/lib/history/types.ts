@@ -12,4 +12,8 @@ export interface HistoryStore {
   save(entry: HistoryEntry): Promise<void>;
   delete(id: string): Promise<void>;
   clear(): Promise<void>;
+
+  // Option B — audio blob storage (optional so localStore keeps working as-is)
+  saveAudio?(entryId: string, blob: Blob): Promise<void>;
+  getAudioUrl?(entryId: string): Promise<string | null>;
 }

@@ -136,6 +136,7 @@ export function RecordOrUpload({
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [durationSeconds, setDurationSeconds] = useState(0);
   const [micError, setMicError] = useState<MicErrorInfo | null>(null);
+  const [confirmingClear, setConfirmingClear] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -176,6 +177,7 @@ export function RecordOrUpload({
     setAudioBlob(null);
     setDurationSeconds(0);
     setRecorderState("idle");
+    setConfirmingClear(false);
   }, [teardownRecorder]);
 
   useEffect(() => {
@@ -336,7 +338,7 @@ export function RecordOrUpload({
             type="button"
             onClick={pauseRecording}
             aria-pressed={true}
-            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white"
+            className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-80"
           >
             Stop recording
           </button>
@@ -346,13 +348,13 @@ export function RecordOrUpload({
             onClick={startRecording}
             disabled={isAnalyzing}
             aria-pressed={false}
-            className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white"
+            className="rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--primary-fg)] transition-opacity hover:opacity-80"
           >
             {recorderState === "paused" ? "Resume recording" : "Start recording"}
           </button>
         )}
 
-        <label className={`cursor-pointer rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-sm font-medium ${recorderState !== "idle" || isAnalyzing ? "pointer-events-none opacity-50" : ""}`}>
+        <label className={`cursor-pointer rounded-xl border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-sm font-medium transition-colors hover:border-[var(--foreground)] ${recorderState !== "idle" || isAnalyzing ? "pointer-events-none opacity-50" : ""}`}>
           Upload audio
           <input
             type="file"
@@ -364,19 +366,54 @@ export function RecordOrUpload({
         </label>
 
         {(audioBlob || recorderState !== "idle") && (
-          <button
-            type="button"
-            onClick={clearAudio}
-            className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm"
-          >
-            Clear
-          </button>
+          confirmingClear ? (
+            <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2">
+              <span className="text-sm text-red-700">Discard recording?</span>
+              <button
+                type="button"
+                onClick={() => { setConfirmingClear(false); clearAudio(); }}
+                className="rounded-lg bg-red-600 px-3 py-1 text-xs font-semibold text-white transition-opacity hover:opacity-80"
+              >
+                Yes, discard
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmingClear(false)}
+                className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-1 text-xs font-medium transition-colors hover:border-[var(--foreground)]"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmingClear(true)}
+              className="rounded-xl border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-sm font-medium transition-colors hover:border-[var(--foreground)]"
+            >
+              Clear
+            </button>
+          )
         )}
       </div>
 
       {/* Waveform preview — only shown when paused, not while actively recording */}
       {audioUrl && audioBlob && recorderState !== "recording" && (
-        <WaveformPlayer audioUrl={audioUrl} audioBlob={audioBlob} />
+        <div className="flex flex-col gap-2">
+          <WaveformPlayer audioUrl={audioUrl} audioBlob={audioBlob} />
+          <div className="flex justify-end">
+            <a
+              href={audioUrl}
+              download="speech-recording.webm"
+              className="flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-1.5 text-xs font-medium text-[var(--muted)] transition-colors hover:border-[var(--foreground)] hover:text-[var(--foreground)]"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M6 1v7M3.5 5.5L6 8l2.5-2.5" />
+                <path d="M1.5 10.5h9" />
+              </svg>
+              Download audio
+            </a>
+          </div>
+        </div>
       )}
 
       <div className="flex gap-3">
@@ -384,7 +421,7 @@ export function RecordOrUpload({
           type="button"
           onClick={onBack}
           disabled={isAnalyzing}
-          className="rounded-lg border border-[var(--border)] px-4 py-3 text-sm"
+          className="rounded-xl border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-sm font-medium transition-colors hover:border-[var(--foreground)]"
         >
           Back
         </button>
@@ -392,7 +429,7 @@ export function RecordOrUpload({
           type="button"
           disabled={!audioBlob || isAnalyzing}
           onClick={handleAnalyze}
-          className="flex-1 rounded-lg bg-[var(--accent)] px-4 py-3 text-sm font-medium text-white disabled:opacity-50"
+          className="flex-1 rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-bold text-[var(--accent-fg)] transition-opacity disabled:opacity-40 hover:opacity-90"
         >
           {isAnalyzing ? "Analyzing…" : "Analyze speech"}
         </button>

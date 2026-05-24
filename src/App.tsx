@@ -107,7 +107,7 @@ export default function App() {
 
         {step === "brief" && (
           <section>
-            <h2 className="mb-1 text-lg font-semibold">Plan your speech</h2>
+            <h2 className="mb-1 text-2xl font-extrabold tracking-tight">Plan Your Speech</h2>
             <p className="mb-6 text-sm text-[var(--muted)]">
               Tell us about your talk so feedback can focus on what matters to
               you and your audience.
@@ -122,7 +122,7 @@ export default function App() {
 
         {step === "practice" && (
           <section>
-            <h2 className="mb-1 text-lg font-semibold">Practice</h2>
+            <h2 className="mb-1 text-2xl font-extrabold tracking-tight">Practice</h2>
             <p className="mb-2 text-sm font-medium">{brief.title}</p>
             {analyzeError && (
               <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -141,7 +141,7 @@ export default function App() {
 
         {step === "feedback" && feedback && (
           <section>
-            <h2 className="mb-1 text-lg font-semibold">Your feedback</h2>
+            <h2 className="mb-1 text-2xl font-extrabold tracking-tight">Your feedback</h2>
             <p className="mb-6 text-sm text-[var(--muted)]">{brief.title}</p>
             <FeedbackReport
               brief={brief}

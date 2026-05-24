@@ -85,20 +85,19 @@ export function SpeechBriefForm({
 
   const canContinue =
     brief.title.trim().length > 0 &&
-    brief.description.trim().length > 0 &&
     brief.takeaways[0].trim().length > 0;
 
   return (
     <form
-      className="flex flex-col gap-6"
+      className="flex flex-col gap-8"
       onSubmit={(e) => {
         e.preventDefault();
         if (canContinue) onContinue();
       }}
     >
-      <fieldset className="flex flex-col gap-2">
-        <label htmlFor="format" className="text-sm font-medium">
-          Speech format
+      <fieldset className="flex flex-col gap-3">
+      <label htmlFor="format" className="text-sm font-semibold">
+          Speech Format
         </label>
         <select
           id="format"
@@ -119,9 +118,9 @@ export function SpeechBriefForm({
       </fieldset>
 
       {brief.format === "toastmasters" && (
-        <fieldset className="flex flex-col gap-2">
-          <label htmlFor="tmPath" className="text-sm font-medium">
-            Learning path
+        <fieldset className="flex flex-col gap-3">
+          <label htmlFor="tmPath" className="text-sm font-semibold">
+            Learning Path
             <span className="ml-1.5 text-xs font-normal text-[var(--muted)]">
               (optional)
             </span>
@@ -153,8 +152,8 @@ export function SpeechBriefForm({
         </fieldset>
       )}
 
-      <fieldset className="flex flex-col gap-2">
-        <label htmlFor="title" className="text-sm font-medium">
+      <fieldset className="flex flex-col gap-3">
+        <label htmlFor="title" className="text-sm font-semibold">
           Title
         </label>
         <input
@@ -167,9 +166,10 @@ export function SpeechBriefForm({
         />
       </fieldset>
 
-      <fieldset className="flex flex-col gap-2">
-        <label htmlFor="description" className="text-sm font-medium">
-          Brief description
+      <fieldset className="flex flex-col gap-3">
+        <label htmlFor="description" className="text-sm font-semibold">
+          Brief Description
+          <span className="ml-1.5 text-xs font-normal text-[var(--muted)]">(optional)</span>
         </label>
         <textarea
           id="description"
@@ -182,18 +182,36 @@ export function SpeechBriefForm({
       </fieldset>
 
       <fieldset className="flex flex-col gap-3">
-        <div className="flex items-baseline justify-between">
-          <legend className="text-sm font-medium">
-            What should the audience remember?
-          </legend>
-          <span className="text-xs text-[var(--muted)]">up to 3</span>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <legend className="text-sm font-semibold">Define Takeaways</legend>
+            <p className="text-xs text-[var(--muted)]">What should the audience remember? (up to 3)</p>
+          </div>
+          {visibleTakeaways < 3 && (
+            <button
+              type="button"
+              onClick={() =>
+                setVisibleTakeaways((v) => Math.min(3, v + 1) as 1 | 2 | 3)
+              }
+              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-dashed border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--muted)] hover:border-[var(--foreground)] hover:text-[var(--foreground)]"
+            >
+              <span className="text-sm leading-none">+</span>
+              Add takeaway
+            </button>
+          )}
         </div>
 
-        {([0, 1, 2] as const)
-          .filter((i) => i < visibleTakeaways)
-          .map((i) => (
-            <div key={i} className="flex items-center gap-2">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--accent-muted)] text-xs font-semibold text-[var(--accent)]">
+        {([0, 1, 2] as const).map((i) => (
+            <div
+              key={i}
+              className="flex items-center gap-2 overflow-hidden transition-all duration-200 ease-in-out"
+              style={{
+                opacity: i < visibleTakeaways ? 1 : 0,
+                maxHeight: i < visibleTakeaways ? "60px" : "0px",
+                pointerEvents: i < visibleTakeaways ? "auto" : "none",
+              }}
+            >
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--foreground)] text-xs font-bold text-white">
                 {i + 1}
               </span>
               <input
@@ -208,68 +226,57 @@ export function SpeechBriefForm({
                 onChange={(e) => updateTakeaway(i, e.target.value)}
                 required={i === 0}
               />
-              {i > 0 && (
+              {i > 0 ? (
                 <button
                   type="button"
                   onClick={() => removeTakeaway(i as 1 | 2)}
-                  className="shrink-0 rounded-full p-1 text-[var(--muted)] hover:bg-red-50 hover:text-red-500"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--muted)] hover:bg-red-50 hover:text-red-500"
                   aria-label={`Remove takeaway ${i + 1}`}
                 >
                   ✕
                 </button>
+              ) : (
+                <span className="h-7 w-7 shrink-0" aria-hidden />
               )}
             </div>
           ))}
-
-        {visibleTakeaways < 3 && (
-          <button
-            type="button"
-            onClick={() =>
-              setVisibleTakeaways((v) => Math.min(3, v + 1) as 1 | 2 | 3)
-            }
-            className="flex items-center gap-2 self-start rounded-lg border border-dashed border-[var(--border)] px-3 py-2 text-sm text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
-          >
-            <span className="text-base leading-none">+</span>
-            Add another takeaway
-          </button>
-        )}
       </fieldset>
 
-      <fieldset className="flex flex-col gap-2">
-        <legend className="flex items-center gap-1 text-sm font-medium">
-          Target time range
+      <fieldset className="flex flex-col gap-3">
+        <legend className="flex items-center gap-1 text-sm font-semibold">
+          Target Time Range
         </legend>
         <p className="text-xs text-[var(--muted)]">
           Click either value to edit
         </p>
         <div className="flex items-center gap-4">
-          <div className="flex flex-col items-center gap-1">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--muted)]">
-              Minimum
-            </span>
-            <button
+          <button
               type="button"
               onClick={() => setPickerTarget("min")}
-              className="rounded-xl border-2 border-[var(--accent)] bg-[var(--accent-muted)] px-5 py-2 font-mono text-2xl font-bold text-[var(--accent)] transition-colors hover:bg-blue-100"
+              className="flex flex-col items-center gap-1 rounded-xl bg-[var(--foreground)] px-6 pb-3 pt-2.5 shadow-sm transition-opacity hover:opacity-80"
             >
-              {formatMmSs(brief.minSeconds)}
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--accent)]">
+                Minimum
+              </span>
+              <span className="font-mono text-2xl font-bold text-white">
+                {formatMmSs(brief.minSeconds)}
+              </span>
             </button>
-          </div>
 
-          <span className="mt-4 text-xl font-semibold text-[var(--muted)]">–</span>
+          <span className="text-xl font-semibold text-[var(--muted)]">–</span>
 
-          <div className="flex flex-col items-center gap-1">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--muted)]">
-              Maximum
-            </span>
-            <button
+          <button
               type="button"
               onClick={() => setPickerTarget("max")}
-              className="rounded-xl border-2 border-[var(--accent)] bg-[var(--accent-muted)] px-5 py-2 font-mono text-2xl font-bold text-[var(--accent)] transition-colors hover:bg-blue-100"
+              className="flex flex-col items-center gap-1 rounded-xl bg-[var(--foreground)] px-6 pb-3 pt-2.5 shadow-sm transition-opacity hover:opacity-80"
             >
-              {formatMmSs(brief.maxSeconds)}
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--accent)]">
+                Maximum
+              </span>
+              <span className="font-mono text-2xl font-bold text-white">
+                {formatMmSs(brief.maxSeconds)}
+              </span>
             </button>
-          </div>
         </div>
         {brief.maxSeconds <= brief.minSeconds && (
           <p className="text-xs text-red-600">
@@ -289,8 +296,8 @@ export function SpeechBriefForm({
         />
       )}
 
-      <fieldset className="flex flex-col gap-3">
-        <legend className="text-sm font-medium">What should we watch for?</legend>
+      <fieldset className="flex flex-col gap-3 pb-2">
+        <legend className="mb-1 text-sm font-semibold">What Should We Watch For?</legend>
         <div className="grid gap-2 sm:grid-cols-2">
           {WATCH_FOR_OPTIONS.map((opt) => (
             <label
@@ -317,7 +324,7 @@ export function SpeechBriefForm({
       <button
         type="submit"
         disabled={!canContinue}
-        className="rounded-lg bg-[var(--accent)] px-4 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-bold text-[var(--accent-fg)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
       >
         Continue to practice
       </button>

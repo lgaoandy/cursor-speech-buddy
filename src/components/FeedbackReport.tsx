@@ -12,8 +12,13 @@ interface FeedbackReportProps {
 const RING_RADIUS = 20;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
+/** Convert a 1–10 LLM score to a displayed 1–5 score (1 decimal). */
+function toFive(raw: number): number {
+  return Math.round((raw / 2) * 10) / 10;
+}
+
 function scoreTheme(score: number) {
-  if (score >= 8)
+  if (score >= 4)
     return {
       stroke: "#16a34a",
       card: "border-green-400 bg-green-50",
@@ -23,7 +28,7 @@ function scoreTheme(score: number) {
       strengthBullet: "text-green-600",
       improvementBullet: "text-red-500",
     };
-  if (score >= 6)
+  if (score >= 3)
     return {
       stroke: "#d97706",
       card: "border-amber-400 bg-amber-50",
@@ -46,7 +51,7 @@ function scoreTheme(score: number) {
 
 function ScoreRing({ score }: { score: number }) {
   const { stroke } = scoreTheme(score);
-  const fill = (score / 10) * RING_CIRCUMFERENCE;
+  const fill = (score / 5) * RING_CIRCUMFERENCE;
   const gap = RING_CIRCUMFERENCE - fill;
 
   return (
@@ -79,9 +84,9 @@ function ScoreRing({ score }: { score: number }) {
       <span
         className="absolute text-sm font-bold"
         style={{ color: stroke }}
-        aria-label={`Score ${score} out of 10`}
+        aria-label={`Score ${score} out of 5`}
       >
-        {score}/10
+        {score}/5
       </span>
     </div>
   );
@@ -102,7 +107,8 @@ function CategoryCard({
   hint: string;
   data: SpeechFeedback["content"];
 }) {
-  const theme = scoreTheme(data.score);
+  const displayScore = toFive(data.score);
+  const theme = scoreTheme(displayScore);
   const strengths = data.strengths.filter((s) => !isBlank(s));
   const improvements = data.improvements.filter((s) => !isBlank(s));
 
@@ -115,7 +121,7 @@ function CategoryCard({
           <h3 className="font-semibold">{title}</h3>
           <p className="text-xs text-[var(--muted)]">{hint}</p>
         </div>
-        <ScoreRing score={data.score} />
+        <ScoreRing score={displayScore} />
       </div>
 
       <p className="mb-3 text-sm leading-relaxed">{data.summary}</p>
@@ -270,8 +276,13 @@ export function FeedbackReport({
     feedback.timing.durationSeconds,
   );
 
-  const scores = [feedback.content.score, feedback.delivery.score, feedback.language.score];
-  const avgScore = Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10;
+  const displayScores = [
+    toFive(feedback.content.score),
+    toFive(feedback.delivery.score),
+    toFive(feedback.language.score),
+  ];
+  const sum = displayScores.reduce((a, b) => a + b, 0);
+  const avgScore = Math.round((sum / 15) * 10 * 10) / 10;
   const avgStroke = avgScore >= 8 ? "#16a34a" : avgScore >= 6 ? "#d97706" : "#dc2626";
   const avgLabel = avgScore >= 8 ? "Strong" : avgScore >= 6 ? "Developing" : "Needs work";
 
@@ -292,14 +303,14 @@ export function FeedbackReport({
             <div className="h-10 w-px bg-[var(--accent-muted)] opacity-50" />
             <div className="flex gap-2 text-xs text-[var(--muted)]">
               {[
-                { label: "Content", score: feedback.content.score },
-                { label: "Delivery", score: feedback.delivery.score },
-                { label: "Language", score: feedback.language.score },
+                { label: "Content", score: displayScores[0] },
+                { label: "Delivery", score: displayScores[1] },
+                { label: "Language", score: displayScores[2] },
               ].map(({ label, score }) => {
-                const c = score >= 8 ? "#16a34a" : score >= 6 ? "#d97706" : "#dc2626";
+                const c = score >= 4 ? "#16a34a" : score >= 3 ? "#d97706" : "#dc2626";
                 return (
                   <div key={label} className="flex flex-col items-center gap-0.5">
-                    <span className="font-semibold" style={{ color: c }}>{score}/10</span>
+                    <span className="font-semibold" style={{ color: c }}>{score}/5</span>
                     <span>{label}</span>
                   </div>
                 );

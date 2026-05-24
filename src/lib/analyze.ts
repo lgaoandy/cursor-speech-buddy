@@ -87,8 +87,15 @@ export async function analyzeSpeech(
   });
 
   if (!res.ok) {
-    const message = await res.text();
-    throw new Error(message || `Analysis failed (${res.status})`);
+    const body = await res.text();
+    let message = `Analysis failed (${res.status})`;
+    try {
+      const parsed = JSON.parse(body) as { error?: string };
+      if (parsed.error) message = parsed.error;
+    } catch {
+      if (body.trim()) message = body.trim();
+    }
+    throw new Error(message);
   }
 
   return res.json() as Promise<SpeechFeedback>;

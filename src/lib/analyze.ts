@@ -5,14 +5,15 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 export function countFillers(transcript: string): {
   count: number;
-  examples: string[];
+  breakdown: Record<string, number>;
 } {
   const matches = transcript.match(FILLER_PATTERNS) ?? [];
-  const examples = [...new Set(matches.map((m) => m.toLowerCase()))].slice(
-    0,
-    8,
-  );
-  return { count: matches.length, examples };
+  const breakdown: Record<string, number> = {};
+  for (const match of matches) {
+    const word = match.toLowerCase();
+    breakdown[word] = (breakdown[word] ?? 0) + 1;
+  }
+  return { count: matches.length, breakdown };
 }
 
 /** Mock feedback for local dev when no API is running */
@@ -25,7 +26,7 @@ export function mockFeedback(
   const transcript =
     "[Demo mode] Connect VITE_API_URL to your backend for real transcription and AI feedback.";
   const fillers = countFillers(
-    "um so today uh I want to talk about like you know our three goals",
+    "um so today uh I want to talk about like you know sort of our three goals basically",
   );
 
   return {

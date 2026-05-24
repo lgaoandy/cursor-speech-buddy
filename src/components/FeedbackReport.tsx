@@ -142,12 +142,30 @@ export function FeedbackReport({
           </p>
         </div>
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
-          <h3 className="text-sm font-medium text-[var(--muted)]">Fillers</h3>
-          <p className="text-2xl font-semibold">{feedback.fillers.count}</p>
-          {feedback.fillers.examples.length > 0 && (
-            <p className="mt-1 text-xs text-[var(--muted)]">
-              e.g. {feedback.fillers.examples.join(", ")}
-            </p>
+          <h3 className="text-sm font-medium text-[var(--muted)]">Filler words</h3>
+          <p className="text-2xl font-semibold">
+            {feedback.fillers.count}
+            <span className="text-base font-normal text-[var(--muted)]"> total</span>
+          </p>
+          {Object.keys(feedback.fillers.breakdown).length > 0 && (
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {Object.entries(feedback.fillers.breakdown)
+                .sort((a, b) => b[1] - a[1])
+                .map(([word, n]) => (
+                  <li
+                    key={word}
+                    className="flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--background)] px-2.5 py-1"
+                  >
+                    <span className="text-xs font-medium">"{word}"</span>
+                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--accent)] text-[10px] font-bold text-white">
+                      {n}
+                    </span>
+                  </li>
+                ))}
+            </ul>
+          )}
+          {feedback.fillers.count === 0 && (
+            <p className="mt-1 text-xs text-green-700">No filler words detected</p>
           )}
         </div>
       </section>
@@ -167,25 +185,27 @@ export function FeedbackReport({
       <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
         <h2 className="mb-3 font-semibold">Audience takeaways</h2>
         <ul className="flex flex-col gap-3">
-          {feedback.takeawayAlignment.map((item, i) => (
-            <li
-              key={i}
-              className="flex gap-3 rounded-lg border border-[var(--border)] p-3 text-sm"
-            >
-              <span
-                className={`mt-0.5 shrink-0 text-lg ${item.addressed ? "text-green-600" : "text-amber-500"}`}
-                aria-hidden
+          {feedback.takeawayAlignment
+            .filter((_, i) => brief.takeaways[i]?.trim().length > 0)
+            .map((item, i) => (
+              <li
+                key={i}
+                className="flex gap-3 rounded-lg border border-[var(--border)] p-3 text-sm"
               >
-                {item.addressed ? "✓" : "○"}
-              </span>
-              <div>
-                <p className="font-medium">
-                  {item.takeaway || brief.takeaways[i]}
-                </p>
-                <p className="text-[var(--muted)]">{item.notes}</p>
-              </div>
-            </li>
-          ))}
+                <span
+                  className={`mt-0.5 shrink-0 text-lg ${item.addressed ? "text-green-600" : "text-amber-500"}`}
+                  aria-hidden
+                >
+                  {item.addressed ? "✓" : "○"}
+                </span>
+                <div>
+                  <p className="font-medium">
+                    {item.takeaway || brief.takeaways[i]}
+                  </p>
+                  <p className="text-[var(--muted)]">{item.notes}</p>
+                </div>
+              </li>
+            ))}
         </ul>
       </section>
 

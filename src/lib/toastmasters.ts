@@ -66,4 +66,4 @@ export const EVALUATION_CATEGORIES = [
 ];
 
 export const FILLER_PATTERNS =
-  /\b(um+|uh+|ah+|er+|like|you know|sort of|kind of)\b/gi;
+  /\b(um+|uh+|ah+|er+|erm+|like|you know|sort of|kind of|basically|literally|actually|right\?|yeah)\b/gi;

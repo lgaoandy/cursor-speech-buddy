@@ -34,7 +34,7 @@ export interface TimingMetrics {
 
 export interface FillerMetrics {
   count: number;
-  examples: string[];
+  breakdown: Record<string, number>;
 }
 
 export interface CategoryFeedback {

@@ -12,7 +12,7 @@ const RING_RADIUS = 20;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
 function scoreTheme(score: number) {
-  if (score >= 4)
+  if (score >= 8)
     return {
       stroke: "#16a34a",
       card: "border-green-400 bg-green-50",
@@ -22,7 +22,7 @@ function scoreTheme(score: number) {
       strengthBullet: "text-green-600",
       improvementBullet: "text-red-500",
     };
-  if (score >= 3)
+  if (score >= 6)
     return {
       stroke: "#d97706",
       card: "border-amber-400 bg-amber-50",
@@ -45,7 +45,7 @@ function scoreTheme(score: number) {
 
 function ScoreRing({ score }: { score: number }) {
   const { stroke } = scoreTheme(score);
-  const fill = (score / 5) * RING_CIRCUMFERENCE;
+  const fill = (score / 10) * RING_CIRCUMFERENCE;
   const gap = RING_CIRCUMFERENCE - fill;
 
   return (
@@ -78,9 +78,9 @@ function ScoreRing({ score }: { score: number }) {
       <span
         className="absolute text-sm font-bold"
         style={{ color: stroke }}
-        aria-label={`Score ${score} out of 5`}
+        aria-label={`Score ${score} out of 10`}
       >
-        {score}/5
+        {score}/10
       </span>
     </div>
   );
@@ -268,12 +268,43 @@ export function FeedbackReport({
     feedback.timing.durationSeconds,
   );
 
+  const scores = [feedback.content.score, feedback.delivery.score, feedback.language.score];
+  const avgScore = Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10;
+  const avgStroke = avgScore >= 8 ? "#16a34a" : avgScore >= 6 ? "#d97706" : "#dc2626";
+  const avgLabel = avgScore >= 8 ? "Strong" : avgScore >= 6 ? "Developing" : "Needs work";
+
   return (
     <div className="flex flex-col gap-6">
 
       {/* Overall summary */}
       <section className="rounded-xl border-2 border-[var(--accent)] bg-[var(--accent-muted)] p-4">
-        <h2 className="mb-2 font-semibold text-[var(--accent)]">Overall</h2>
+        <div className="mb-3 flex items-center justify-between gap-4">
+          <h2 className="font-semibold text-[var(--accent)]">Overall</h2>
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <p className="text-2xl font-bold leading-none" style={{ color: avgStroke }}>
+                {avgScore}<span className="text-base font-normal text-[var(--muted)]">/10</span>
+              </p>
+              <p className="text-xs font-medium" style={{ color: avgStroke }}>{avgLabel}</p>
+            </div>
+            <div className="h-10 w-px bg-[var(--accent-muted)] opacity-50" />
+            <div className="flex gap-2 text-xs text-[var(--muted)]">
+              {[
+                { label: "Content", score: feedback.content.score },
+                { label: "Delivery", score: feedback.delivery.score },
+                { label: "Language", score: feedback.language.score },
+              ].map(({ label, score }) => {
+                const c = score >= 8 ? "#16a34a" : score >= 6 ? "#d97706" : "#dc2626";
+                return (
+                  <div key={label} className="flex flex-col items-center gap-0.5">
+                    <span className="font-semibold" style={{ color: c }}>{score}/10</span>
+                    <span>{label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
         {summaryBullets.length === 1 ? (
           <p className="text-sm leading-relaxed">{summaryBullets[0]}</p>
         ) : (

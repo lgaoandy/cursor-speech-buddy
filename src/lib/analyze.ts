@@ -40,19 +40,19 @@ export function mockFeedback(
     },
     fillers,
     content: {
-      score: 3,
+      score: 6,
       summary: "Placeholder — wire up the analyze API.",
       strengths: ["Clear brief captured"],
       improvements: ["Add a real practice recording"],
     },
     delivery: {
-      score: 3,
+      score: 6,
       summary: "Delivery analysis pending API.",
       strengths: [],
       improvements: ["Record a full practice run"],
     },
     language: {
-      score: 3,
+      score: 6,
       summary: "Language analysis pending API.",
       strengths: [],
       improvements: [],

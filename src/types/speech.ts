@@ -19,15 +19,17 @@ export interface SpeechBrief {
   title: string;
   description: string;
   takeaways: [string, string, string];
-  timeLimitMinutes: number;
+  minSeconds: number;
+  maxSeconds: number;
   watchFor: WatchForCriteria[];
 }
 
 export interface TimingMetrics {
   durationSeconds: number;
-  limitSeconds: number;
-  withinLimit: boolean;
-  percentOfLimit: number;
+  minSeconds: number;
+  maxSeconds: number;
+  withinRange: boolean;
+  percentOfMax: number;
 }
 
 export interface FillerMetrics {
@@ -66,6 +68,7 @@ export const EMPTY_BRIEF: SpeechBrief = {
   title: "",
   description: "",
   takeaways: ["", "", ""],
-  timeLimitMinutes: 5,
+  minSeconds: 240,
+  maxSeconds: 360,
   watchFor: ["grammar", "timing", "fillers", "structure"],
 };

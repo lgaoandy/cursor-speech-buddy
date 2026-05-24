@@ -5,14 +5,16 @@ interface RecordOrUploadProps {
   onBack: () => void;
   onAnalyze: (audio: Blob, durationSeconds: number) => void;
   isAnalyzing: boolean;
-  timeLimitSeconds: number;
+  minSeconds: number;
+  maxSeconds: number;
 }
 
 export function RecordOrUpload({
   onBack,
   onAnalyze,
   isAnalyzing,
-  timeLimitSeconds,
+  minSeconds,
+  maxSeconds,
 }: RecordOrUploadProps) {
   const [recording, setRecording] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -127,7 +129,8 @@ export function RecordOrUpload({
       {recording && (
         <RecordingTimer
           durationSeconds={durationSeconds}
-          timeLimitSeconds={timeLimitSeconds}
+          minSeconds={minSeconds}
+          maxSeconds={maxSeconds}
         />
       )}
 

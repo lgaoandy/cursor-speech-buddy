@@ -1,6 +1,7 @@
 interface RecordingTimerProps {
   durationSeconds: number;
-  timeLimitSeconds: number;
+  minSeconds: number;
+  maxSeconds: number;
 }
 
 function formatTime(seconds: number): string {
@@ -9,32 +10,36 @@ function formatTime(seconds: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+type TimerState = "below" | "inrange" | "over";
+
 function getTimerState(
   durationSeconds: number,
-  timeLimitSeconds: number,
-): "ok" | "warning" | "over" {
-  if (durationSeconds <= timeLimitSeconds) return "ok";
-  if (durationSeconds <= timeLimitSeconds + 60) return "warning";
-  return "over";
+  minSeconds: number,
+  maxSeconds: number,
+): TimerState {
+  if (durationSeconds > maxSeconds) return "over";
+  if (durationSeconds >= minSeconds) return "inrange";
+  return "below";
 }
 
-const BG_COLORS = {
-  ok: "bg-green-500",
-  warning: "bg-yellow-400",
+const BG_COLORS: Record<TimerState, string> = {
+  below: "bg-green-500",
+  inrange: "bg-amber-400",
   over: "bg-red-500",
-} as const;
+};
 
-const STATUS_LABELS = {
-  ok: "Within time limit",
-  warning: "Time limit reached",
-  over: "1 minute over limit",
-} as const;
+const STATUS_LABELS: Record<TimerState, string> = {
+  below: "Keep going",
+  inrange: "In target window",
+  over: "Over maximum — wrap up",
+};
 
 export function RecordingTimer({
   durationSeconds,
-  timeLimitSeconds,
+  minSeconds,
+  maxSeconds,
 }: RecordingTimerProps) {
-  const state = getTimerState(durationSeconds, timeLimitSeconds);
+  const state = getTimerState(durationSeconds, minSeconds, maxSeconds);
 
   return (
     <div
@@ -47,28 +52,24 @@ export function RecordingTimer({
       aria-live="off"
       aria-label={`Recording time: ${formatTime(durationSeconds)}`}
     >
-      {/* Clock display — capped at ~40% of element height via font size + padding ratio */}
       <span
         className="select-none font-mono font-bold tracking-widest text-white"
         style={{
           fontSize: "clamp(3.5rem, 10vw, 6rem)",
           lineHeight: 1,
           fontVariantNumeric: "tabular-nums",
-          // Tabular nums keep digit width consistent so the clock doesn't jump
           textShadow: "0 2px 8px rgba(0,0,0,0.25)",
         }}
       >
         {formatTime(durationSeconds)}
       </span>
 
-      {/* Status label below the clock */}
-      <span className="text-sm font-medium text-white/80 tracking-wide uppercase">
+      <span className="text-sm font-medium uppercase tracking-wide text-white/80">
         {STATUS_LABELS[state]}
       </span>
 
-      {/* Time limit reference */}
       <span className="text-xs text-white/60">
-        limit: {formatTime(timeLimitSeconds)}
+        Target: {formatTime(minSeconds)} – {formatTime(maxSeconds)}
       </span>
     </div>
   );

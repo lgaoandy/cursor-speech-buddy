@@ -15,9 +15,26 @@ function loadSavedBrief(): SpeechBrief {
   try {
     const raw = localStorage.getItem(BRIEF_STORAGE_KEY);
     if (!raw) return EMPTY_BRIEF;
-    return JSON.parse(raw) as SpeechBrief;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+
+    // Migrate minMinutes/maxMinutes → minSeconds/maxSeconds
+    const minSeconds =
+      typeof parsed.minSeconds === "number" && parsed.minSeconds > 0
+        ? parsed.minSeconds
+        : typeof parsed.minMinutes === "number" && parsed.minMinutes > 0
+          ? parsed.minMinutes * 60
+          : EMPTY_BRIEF.minSeconds;
+
+    const maxSeconds =
+      typeof parsed.maxSeconds === "number" && parsed.maxSeconds > minSeconds
+        ? parsed.maxSeconds
+        : typeof parsed.maxMinutes === "number" &&
+            parsed.maxMinutes * 60 > minSeconds
+          ? parsed.maxMinutes * 60
+          : EMPTY_BRIEF.maxSeconds;
+
+    return { ...EMPTY_BRIEF, ...(parsed as Partial<SpeechBrief>), minSeconds, maxSeconds };
   } catch {
-    // Corrupt storage — ignore and start fresh
     return EMPTY_BRIEF;
   }
 }
@@ -93,7 +110,8 @@ export default function App() {
               onBack={() => setStep("brief")}
               onAnalyze={handleAnalyze}
               isAnalyzing={isAnalyzing}
-              timeLimitSeconds={brief.timeLimitMinutes * 60}
+              minSeconds={brief.minSeconds}
+              maxSeconds={brief.maxSeconds}
             />
           </section>
         )}

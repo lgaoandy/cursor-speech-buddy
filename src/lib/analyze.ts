@@ -20,7 +20,8 @@ export function mockFeedback(
   brief: SpeechBrief,
   durationSeconds: number,
 ): SpeechFeedback {
-  const limitSeconds = brief.timeLimitMinutes * 60;
+  const minSeconds = brief.minSeconds;
+  const maxSeconds = brief.maxSeconds;
   const transcript =
     "[Demo mode] Connect VITE_API_URL to your backend for real transcription and AI feedback.";
   const fillers = countFillers(
@@ -31,9 +32,10 @@ export function mockFeedback(
     transcript,
     timing: {
       durationSeconds,
-      limitSeconds,
-      withinLimit: durationSeconds <= limitSeconds,
-      percentOfLimit: Math.round((durationSeconds / limitSeconds) * 100),
+      minSeconds,
+      maxSeconds,
+      withinRange: durationSeconds >= minSeconds && durationSeconds <= maxSeconds,
+      percentOfMax: Math.round((durationSeconds / maxSeconds) * 100),
     },
     fillers,
     content: {

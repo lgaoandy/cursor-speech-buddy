@@ -116,18 +116,29 @@ export function FeedbackReport({
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
           <h3 className="text-sm font-medium text-[var(--muted)]">Timing</h3>
           <p className="text-2xl font-semibold">
-            {feedback.timing.durationSeconds}s
-            <span className="text-base font-normal text-[var(--muted)]">
-              {" "}
-              / {feedback.timing.limitSeconds}s limit
-            </span>
+            {Math.floor(feedback.timing.durationSeconds / 60)}:
+            {String(feedback.timing.durationSeconds % 60).padStart(2, "0")}
+          </p>
+          <p className="text-xs text-[var(--muted)]">
+            target {Math.floor(feedback.timing.minSeconds / 60)}:
+            {String(feedback.timing.minSeconds % 60).padStart(2, "0")} –{" "}
+            {Math.floor(feedback.timing.maxSeconds / 60)}:
+            {String(feedback.timing.maxSeconds % 60).padStart(2, "0")}
           </p>
           <p
-            className={`mt-1 text-sm ${feedback.timing.withinLimit ? "text-green-700" : "text-amber-700"}`}
+            className={`mt-1 text-sm font-medium ${
+              feedback.timing.durationSeconds < feedback.timing.minSeconds
+                ? "text-amber-600"
+                : feedback.timing.withinRange
+                  ? "text-green-700"
+                  : "text-red-600"
+            }`}
           >
-            {feedback.timing.withinLimit
-              ? "Within your target time"
-              : `${feedback.timing.percentOfLimit}% of limit used`}
+            {feedback.timing.durationSeconds < feedback.timing.minSeconds
+              ? "Below minimum — speech was too short"
+              : feedback.timing.withinRange
+                ? "Within target range"
+                : `Over maximum by ${feedback.timing.durationSeconds - feedback.timing.maxSeconds}s`}
           </p>
         </div>
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">

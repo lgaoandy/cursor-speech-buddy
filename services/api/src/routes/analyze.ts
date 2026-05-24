@@ -59,12 +59,14 @@ router.post(
 
       const fillers = countFillers(transcript);
 
-      const limitSeconds = brief.timeLimitMinutes * 60;
+      const minSeconds = brief.minSeconds;
+      const maxSeconds = brief.maxSeconds;
       const timing = {
         durationSeconds,
-        limitSeconds,
-        withinLimit: durationSeconds <= limitSeconds,
-        percentOfLimit: Math.round((durationSeconds / limitSeconds) * 100),
+        minSeconds,
+        maxSeconds,
+        withinRange: durationSeconds >= minSeconds && durationSeconds <= maxSeconds,
+        percentOfMax: Math.round((durationSeconds / maxSeconds) * 100),
       };
 
       const llmResult = await evaluateSpeech(

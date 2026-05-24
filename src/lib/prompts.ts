@@ -16,26 +16,31 @@ export function buildAnalysisUserPrompt(
   durationSeconds: number,
   fillerCount: number,
 ): string {
-  const limitSeconds = brief.timeLimitMinutes * 60;
+  const minSeconds = brief.minSeconds;
+  const maxSeconds = brief.maxSeconds;
+  const fmt = (s: number) =>
+    `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   return JSON.stringify({
     brief: {
       format: brief.format,
       title: brief.title,
       description: brief.description,
       takeaways: brief.takeaways,
-      timeLimitMinutes: brief.timeLimitMinutes,
+      targetRange: `${fmt(minSeconds)} – ${fmt(maxSeconds)}`,
       watchFor: brief.watchFor,
     },
     metrics: {
       durationSeconds,
-      limitSeconds,
+      minSeconds,
+      maxSeconds,
+      withinRange: durationSeconds >= minSeconds && durationSeconds <= maxSeconds,
       fillerCount,
     },
     transcript,
     instructions: [
       "Evaluate content, delivery, and language using Toastmasters criteria.",
       "Assess whether each of the three audience takeaways was clearly supported.",
-      "Comment on timing vs the limit and filler word usage.",
+      "Comment on whether the speech was within the target time range (minSeconds to maxSeconds).",
       "Prioritize feedback for criteria listed in brief.watchFor.",
     ],
   });

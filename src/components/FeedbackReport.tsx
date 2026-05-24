@@ -154,6 +154,85 @@ function CategoryCard({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Transcript segmentation
+// ---------------------------------------------------------------------------
+
+interface TranscriptSegment {
+  startSeconds: number;
+  text: string;
+}
+
+/**
+ * Divides a plain-text transcript into ~60-second segments without cutting
+ * mid-sentence. Timing is estimated from word-count proportion since Whisper
+ * plain-text mode does not return word-level timestamps.
+ */
+function segmentTranscript(
+  transcript: string,
+  durationSeconds: number,
+): TranscriptSegment[] {
+  // Split on sentence-ending punctuation followed by whitespace or end of string
+  const sentences = transcript
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (sentences.length === 0) return [];
+
+  // Word count per sentence; estimate start time of each sentence
+  const wordCounts = sentences.map((s) => s.split(/\s+/).length);
+  const totalWords = wordCounts.reduce((a, b) => a + b, 0);
+
+  const sentenceStartTimes: number[] = [];
+  let cumulative = 0;
+  for (const count of wordCounts) {
+    sentenceStartTimes.push(
+      totalWords > 0 ? (cumulative / totalWords) * durationSeconds : 0,
+    );
+    cumulative += count;
+  }
+
+  // Build one segment per minute mark (0, 60, 120 …)
+  // Each mark snaps to the sentence whose start is closest to that mark
+  // without cutting into the middle of the preceding sentence.
+  const minuteMarks: number[] = [0];
+  for (let m = 60; m < durationSeconds; m += 60) minuteMarks.push(m);
+
+  // Map each minute mark → first sentence index at/after that mark
+  const boundaries: number[] = [];
+  for (const mark of minuteMarks) {
+    if (mark === 0) {
+      boundaries.push(0);
+      continue;
+    }
+    const idx = sentenceStartTimes.findIndex((t) => t >= mark);
+    const resolved = idx === -1 ? sentences.length - 1 : idx;
+    // Skip if identical to previous boundary (edge case: short speeches)
+    if (resolved !== boundaries[boundaries.length - 1]) {
+      boundaries.push(resolved);
+    }
+  }
+
+  // Build segments
+  return boundaries.map((startIdx, bi) => {
+    const endIdx =
+      bi + 1 < boundaries.length ? boundaries[bi + 1] : sentences.length;
+    return {
+      startSeconds: Math.round(sentenceStartTimes[startIdx]),
+      text: sentences.slice(startIdx, endIdx).join(" "),
+    };
+  });
+}
+
+function fmtTime(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+// ---------------------------------------------------------------------------
+
 /** Split overallSummary into bullet points if it contains sentence breaks. */
 function parseSummaryBullets(text: string): string[] {
   // Already formatted with bullet markers
@@ -184,6 +263,10 @@ export function FeedbackReport({
   };
 
   const summaryBullets = parseSummaryBullets(feedback.overallSummary);
+  const transcriptSegments = segmentTranscript(
+    feedback.transcript,
+    feedback.timing.durationSeconds,
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -335,9 +418,25 @@ export function FeedbackReport({
         <summary className="cursor-pointer text-sm font-medium">
           Transcript
         </summary>
-        <p className="mt-3 whitespace-pre-wrap text-sm text-[var(--muted)]">
-          {feedback.transcript}
-        </p>
+        <div className="mt-4 flex flex-col gap-4">
+          {transcriptSegments.map((seg, i) => (
+            <div key={i} className="flex gap-3">
+              {/* Timestamp gutter */}
+              <div className="flex flex-col items-center gap-1">
+                <span className="shrink-0 rounded-full bg-[var(--accent-muted)] px-2 py-0.5 font-mono text-xs font-semibold text-[var(--accent)]">
+                  {fmtTime(seg.startSeconds)}
+                </span>
+                {i < transcriptSegments.length - 1 && (
+                  <div className="w-px flex-1 bg-[var(--border)]" />
+                )}
+              </div>
+              {/* Segment text */}
+              <p className="pb-2 text-sm leading-relaxed text-[var(--muted)]">
+                {seg.text}
+              </p>
+            </div>
+          ))}
+        </div>
       </details>
 
       <div className="flex flex-wrap gap-3">

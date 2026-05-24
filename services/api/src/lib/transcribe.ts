@@ -13,10 +13,16 @@ export async function transcribeAudio(
   originalName: string,
 ): Promise<string> {
   const stat = fs.statSync(filePath);
-  // Groq enforces a 25 MB limit on audio files
-  const MAX_BYTES = 25 * 1024 * 1024;
-  if (stat.size > MAX_BYTES) {
-    throw new Error("Audio file exceeds the 25 MB limit.");
+  // Groq's Whisper API enforces a hard 25 MB limit — files up to 50 MB are
+  // accepted by our server but anything over 25 MB will fail here with a
+  // clear message rather than a cryptic API error.
+  const GROQ_MAX_BYTES = 25 * 1024 * 1024;
+  if (stat.size > GROQ_MAX_BYTES) {
+    const sizeMB = (stat.size / 1024 / 1024).toFixed(1);
+    throw new Error(
+      `Audio file is ${sizeMB} MB — Groq Whisper's limit is 25 MB. ` +
+        "Try compressing or trimming the recording before uploading.",
+    );
   }
 
   // Wrap stream with the original filename so Groq knows the format (webm, mp3, etc.)

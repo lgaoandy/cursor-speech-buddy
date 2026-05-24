@@ -7,7 +7,8 @@ import { transcribeAudio } from "../lib/transcribe";
 import { evaluateSpeech } from "../lib/evaluate";
 import { countFillers } from "../lib/fillers";
 
-const upload = multer({ dest: "uploads/" });
+const FIFTY_MB = 50 * 1024 * 1024;
+const upload = multer({ dest: "uploads/", limits: { fileSize: FIFTY_MB } });
 const router = Router();
 
 router.post(

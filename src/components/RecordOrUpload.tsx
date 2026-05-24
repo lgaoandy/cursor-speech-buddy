@@ -88,6 +88,14 @@ export function RecordOrUpload({
   const handleFile = (file: File | null) => {
     if (!file) return;
     setError(null);
+
+    const FIFTY_MB = 50 * 1024 * 1024;
+    if (file.size > FIFTY_MB) {
+      setError(
+        `File is ${(file.size / 1024 / 1024).toFixed(1)} MB — maximum upload size is 50 MB. Try a shorter or compressed recording.`,
+      );
+      return;
+    }
     const url = URL.createObjectURL(file);
     setAudioUrl(url);
     setAudioBlob(file);

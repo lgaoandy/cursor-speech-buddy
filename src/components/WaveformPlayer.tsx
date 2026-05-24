@@ -103,7 +103,7 @@ export function WaveformPlayer({ audioUrl, audioBlob }: WaveformPlayerProps) {
 
       {/* Waveform bars */}
       <div
-        className="flex h-16 cursor-pointer items-end gap-px select-none"
+        className="cursor-pointer select-none"
         role="slider"
         aria-label="Audio position"
         aria-valuemin={0}
@@ -111,20 +111,44 @@ export function WaveformPlayer({ audioUrl, audioBlob }: WaveformPlayerProps) {
         aria-valuenow={Math.round(progress * 100)}
         onClick={handleSeek}
       >
-        {bars.map((amplitude, i) => {
-          const played = i < playedBars;
-          return (
-            <div
-              key={i}
-              className={`flex-1 rounded-sm transition-colors duration-75 ${isLoading ? "animate-pulse" : ""}`}
-              style={{
-                height: `${amplitude * 100}%`,
-                backgroundColor: played ? "var(--accent)" : "#d1d5db",
-                minHeight: 2,
-              }}
-            />
-          );
-        })}
+        {/* Main waveform — bars grow upward */}
+        <div className="flex h-16 items-end gap-px">
+          {bars.map((amplitude, i) => {
+            const played = i < playedBars;
+            return (
+              <div
+                key={i}
+                className={`flex-1 transition-colors duration-75 ${isLoading ? "animate-pulse" : ""}`}
+                style={{
+                  borderRadius: 2,
+                  height: `${amplitude * 100}%`,
+                  backgroundColor: played ? "var(--accent)" : "#d1d5db",
+                  minHeight: 2,
+                }}
+              />
+            );
+          })}
+        </div>
+
+        {/* Mirrored reflection — 60% height, flipped, faded */}
+        <div className="flex h-10 items-start gap-px" aria-hidden>
+          {bars.map((amplitude, i) => {
+            const played = i < playedBars;
+            return (
+              <div
+                key={i}
+                className={`flex-1 transition-colors duration-75 ${isLoading ? "animate-pulse" : ""}`}
+                style={{
+                  borderRadius: 2,
+                  height: `${amplitude * 60}%`,
+                  backgroundColor: played ? "var(--accent)" : "#d1d5db",
+                  opacity: 0.25,
+                  minHeight: 1,
+                }}
+              />
+            );
+          })}
+        </div>
       </div>
 
       {/* Controls row */}

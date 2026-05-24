@@ -1,28 +1,10 @@
-import { initializeApp, getApps, cert } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { firestore } from "./firebase";
 import type { HistoryEntry } from "../types/speech";
 
 const MAX_ENTRIES = 20;
 
-function initFirebase() {
-  if (getApps().length > 0) return;
-  initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      // Newlines in env vars are escaped — restore them
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-    }),
-  });
-}
-
-function db() {
-  initFirebase();
-  return getFirestore();
-}
-
 function userHistoryRef(userId: string) {
-  return db().collection("users").doc(userId).collection("history");
+  return firestore().collection("users").doc(userId).collection("history");
 }
 
 export async function getHistory(userId: string): Promise<HistoryEntry[]> {
@@ -45,7 +27,7 @@ export async function saveEntry(
     .get();
   if (all.size > MAX_ENTRIES) {
     const toDelete = all.docs.slice(0, all.size - MAX_ENTRIES);
-    const batch = db().batch();
+    const batch = firestore().batch();
     toDelete.forEach((doc) => batch.delete(doc.ref));
     await batch.commit();
   }
@@ -77,7 +59,7 @@ export async function updateEntryAudioUrl(
 
 export async function clearHistory(userId: string): Promise<void> {
   const snapshot = await userHistoryRef(userId).get();
-  const batch = db().batch();
+  const batch = firestore().batch();
   snapshot.docs.forEach((doc) => batch.delete(doc.ref));
   await batch.commit();
 }

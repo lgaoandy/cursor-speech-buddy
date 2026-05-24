@@ -1,2 +1,3 @@
-
-services/api/.env
+.env
+dist
+uploads

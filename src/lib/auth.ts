@@ -11,11 +11,6 @@ export interface GoogleUser {
   tosStatus: TosStatus;
 }
 
-export type AuthState =
-  | { status: "loading" }
-  | { status: "guest" }
-  | { status: "signed-in"; user: GoogleUser };
-
 export async function getCurrentUser(): Promise<GoogleUser | null> {
   if (!API_URL) return null;
   try {

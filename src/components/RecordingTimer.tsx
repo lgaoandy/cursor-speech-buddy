@@ -1,13 +1,9 @@
+import { formatMMSS } from "@/lib/format";
+
 interface RecordingTimerProps {
   durationSeconds: number;
   minSeconds: number;
   maxSeconds: number;
-}
-
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
 type TimerState = "below" | "inrange" | "over";
@@ -50,7 +46,7 @@ export function RecordingTimer({
       `}
       role="timer"
       aria-live="off"
-      aria-label={`Recording time: ${formatTime(durationSeconds)}`}
+      aria-label={`Recording time: ${formatMMSS(durationSeconds)}`}
     >
       <span
         className="select-none font-mono font-bold tracking-widest text-white"
@@ -61,7 +57,7 @@ export function RecordingTimer({
           textShadow: "0 2px 8px rgba(0,0,0,0.25)",
         }}
       >
-        {formatTime(durationSeconds)}
+        {formatMMSS(durationSeconds)}
       </span>
 
       <span className="text-sm font-medium uppercase tracking-wide text-white/80">
@@ -69,7 +65,7 @@ export function RecordingTimer({
       </span>
 
       <span className="text-xs text-white/60">
-        Target: {formatTime(minSeconds)} – {formatTime(maxSeconds)}
+        Target: {formatMMSS(minSeconds)} – {formatMMSS(maxSeconds)}
       </span>
     </div>
   );

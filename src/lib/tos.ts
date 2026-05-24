@@ -38,7 +38,7 @@ export async function acceptTos(): Promise<void> {
 
 // ---------- Guest localStorage helpers ----------
 
-export function getGuestTosAcceptance(): GuestTosRecord | null {
+function readGuestTosAcceptance(): GuestTosRecord | null {
   try {
     const raw = localStorage.getItem(GUEST_TOS_KEY);
     if (!raw) return null;
@@ -53,11 +53,7 @@ export function setGuestTosAcceptance(version: string): void {
   localStorage.setItem(GUEST_TOS_KEY, JSON.stringify(record));
 }
 
-export function clearGuestTosAcceptance(): void {
-  localStorage.removeItem(GUEST_TOS_KEY);
-}
-
 /** Returns true if the guest has accepted the given ToS version locally. */
 export function guestHasAcceptedVersion(version: string): boolean {
-  return getGuestTosAcceptance()?.version === version;
+  return readGuestTosAcceptance()?.version === version;
 }

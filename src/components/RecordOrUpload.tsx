@@ -145,20 +145,20 @@ export function RecordOrUpload({
   const accumulatedSecsRef = useRef<number>(0);
   const timerRef = useRef<number | null>(null);
 
-  const stopTimer = () => {
+  const stopTimer = useCallback(() => {
     if (timerRef.current) {
       window.clearInterval(timerRef.current);
       timerRef.current = null;
     }
-  };
+  }, []);
 
-  const startTimer = () => {
+  const startTimer = useCallback(() => {
     segmentStartRef.current = Date.now();
     timerRef.current = window.setInterval(() => {
       const segSecs = (Date.now() - segmentStartRef.current) / 1000;
       setDurationSeconds(Math.round(accumulatedSecsRef.current + segSecs));
     }, 500);
-  };
+  }, []);
 
   const teardownRecorder = useCallback(() => {
     stopTimer();
@@ -169,7 +169,7 @@ export function RecordOrUpload({
     streamRef.current = null;
     chunksRef.current = [];
     accumulatedSecsRef.current = 0;
-  }, []);
+  }, [stopTimer]);
 
   const clearAudio = useCallback(() => {
     teardownRecorder();
@@ -180,30 +180,7 @@ export function RecordOrUpload({
     setConfirmingClear(false);
   }, [teardownRecorder]);
 
-  useEffect(() => {
-    return () => {
-      teardownRecorder();
-    };
-  }, []);
-
-  // Spacebar toggles recording — but only when focus is NOT in a text input
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code !== "Space" || e.repeat || isAnalyzing) return;
-      const tag = (e.target as HTMLElement).tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-      e.preventDefault();
-      if (recorderState === "recording") {
-        pauseRecording();
-      } else {
-        void startRecording();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [recorderState, isAnalyzing]);
-
-  const startRecording = async () => {
+  const startRecording = useCallback(async () => {
     // Resume the paused session — all chunks are already accumulated
     if (recorderState === "paused" && mediaRecorderRef.current) {
       accumulatedSecsRef.current = durationSeconds;
@@ -255,9 +232,9 @@ export function RecordOrUpload({
     } catch (err) {
       setMicError(getMicErrorInfo(classifyMicError(err)));
     }
-  };
+  }, [recorderState, durationSeconds, teardownRecorder, startTimer]);
 
-  const pauseRecording = () => {
+  const pauseRecording = useCallback(() => {
     const recorder = mediaRecorderRef.current;
     if (!recorder || recorder.state !== "recording") return;
     accumulatedSecsRef.current += (Date.now() - segmentStartRef.current) / 1000;
@@ -266,7 +243,30 @@ export function RecordOrUpload({
     recorder.requestData();
     recorder.pause();
     setRecorderState("paused");
-  };
+  }, [stopTimer]);
+
+  useEffect(() => {
+    return () => {
+      teardownRecorder();
+    };
+  }, [teardownRecorder]);
+
+  // Spacebar toggles recording — but only when focus is NOT in a text input
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code !== "Space" || e.repeat || isAnalyzing) return;
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      e.preventDefault();
+      if (recorderState === "recording") {
+        pauseRecording();
+      } else {
+        void startRecording();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [recorderState, isAnalyzing, pauseRecording, startRecording]);
 
   const handleAnalyze = () => {
     if (!audioBlob) return;
@@ -399,7 +399,7 @@ export function RecordOrUpload({
       {/* Waveform preview — only shown when paused, not while actively recording */}
       {audioUrl && audioBlob && recorderState !== "recording" && (
         <div className="flex flex-col gap-2">
-          <WaveformPlayer audioUrl={audioUrl} audioBlob={audioBlob} />
+          <WaveformPlayer key={audioUrl} audioUrl={audioUrl} audioBlob={audioBlob} />
           <div className="flex justify-end">
             <a
               href={audioUrl}

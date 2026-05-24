@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { formatMSS } from "@/lib/format";
 
 const BAR_COUNT = 80;
 const MIN_BAR_HEIGHT = 0.08;
@@ -32,12 +33,6 @@ async function decodeWaveform(blob: Blob): Promise<number[]> {
   });
 }
 
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
 // Deterministic skeleton using the same [MIN, 1] scale as decoded waveforms
 const SKELETON_BARS = Array.from({ length: BAR_COUNT }, (_, i) => {
   const wave = Math.abs(Math.sin((i / BAR_COUNT) * Math.PI * 6));
@@ -56,14 +51,14 @@ export function WaveformPlayer({ audioUrl, audioBlob }: WaveformPlayerProps) {
   const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
 
+  // Decode the waveform once per blob. Parents should remount with key={audioUrl}
+  // when swapping recordings so the player resets cleanly without setState-in-effect.
   useEffect(() => {
-    setWaveform([]);
-    setCurrentTime(0);
-    setDuration(0);
-    setIsPlaying(false);
+    let cancelled = false;
     decodeWaveform(audioBlob)
-      .then(setWaveform)
-      .catch(() => setWaveform(SKELETON_BARS));
+      .then((bars) => { if (!cancelled) setWaveform(bars); })
+      .catch(() => { if (!cancelled) setWaveform(SKELETON_BARS); });
+    return () => { cancelled = true; };
   }, [audioBlob]);
 
   const togglePlay = () => {
@@ -172,9 +167,9 @@ export function WaveformPlayer({ audioUrl, audioBlob }: WaveformPlayerProps) {
         </button>
 
         <span className="text-xs tabular-nums text-[var(--muted)]">
-          {formatTime(currentTime)}
+          {formatMSS(currentTime)}
           <span className="mx-1 opacity-50">/</span>
-          {formatTime(duration)}
+          {formatMSS(duration)}
         </span>
       </div>
     </div>

@@ -46,7 +46,10 @@ app.get("/health", (_req, res) => {
 
 app.use(analyzeRouter);
 app.use(authRouter);
-app.use(historyRouter);
+// Mounted on /history so requireTosAccepted (router.use inside) is scoped to
+// these routes only — otherwise it blocks /tos/accept for users who haven't
+// accepted yet, which is a chicken-and-egg deadlock.
+app.use("/history", historyRouter);
 app.use(tosRouter);
 
 app.listen(Number(PORT), () => {

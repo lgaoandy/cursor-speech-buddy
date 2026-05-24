@@ -6,6 +6,7 @@ import {
   TOASTMASTERS_PATHS,
   getFormatDefaults,
 } from "@/lib/toastmasters";
+import { formatMMSS } from "@/lib/format";
 import { TimePickerModal } from "@/components/TimePickerModal";
 
 interface SpeechBriefFormProps {
@@ -15,12 +16,6 @@ interface SpeechBriefFormProps {
 }
 
 type PickerTarget = "min" | "max" | null;
-
-function formatMmSs(totalSeconds: number): string {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
 
 /** Count how many takeaway slots are currently in use (at least 1). */
 function initialVisibleCount(takeaways: [string, string, string]): 1 | 2 | 3 {
@@ -259,7 +254,7 @@ export function SpeechBriefForm({
                 Minimum
               </span>
               <span className="font-mono text-2xl font-bold text-white">
-                {formatMmSs(brief.minSeconds)}
+                {formatMMSS(brief.minSeconds)}
               </span>
             </button>
 
@@ -274,7 +269,7 @@ export function SpeechBriefForm({
                 Maximum
               </span>
               <span className="font-mono text-2xl font-bold text-white">
-                {formatMmSs(brief.maxSeconds)}
+                {formatMMSS(brief.maxSeconds)}
               </span>
             </button>
         </div>

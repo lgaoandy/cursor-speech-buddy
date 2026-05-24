@@ -2,6 +2,7 @@ import fs from "fs";
 import { Router } from "express";
 import multer from "multer";
 import type { Request, Response } from "express";
+import type { HistoryEntry } from "../types/speech";
 import {
   getHistory,
   saveEntry,
@@ -40,11 +41,12 @@ function historyError(res: Response, err: unknown, route: string): void {
   });
 }
 
-// All history routes require both authentication and ToS acceptance
+// All history routes require both authentication and ToS acceptance.
+// Router is mounted on /history in index.ts, so paths below are relative.
 router.use(requireTosAccepted);
 
 // GET /history — fetch all entries for the signed-in user
-router.get("/history", async (req, res) => {
+router.get("/", async (req, res) => {
   const user = requireAuth(req, res);
   if (!user) return;
   try {
@@ -57,7 +59,7 @@ router.get("/history", async (req, res) => {
 
 // POST /history — save a history entry (+ optional audio file)
 router.post(
-  "/history",
+  "/",
   upload.single("audio"),
   async (req: Request, res: Response): Promise<void> => {
     const user = requireAuth(req, res);
@@ -111,7 +113,7 @@ router.post(
 
 // POST /history/:entryId/audio — upload audio to Drive and attach URL to entry
 router.post(
-  "/history/:entryId/audio",
+  "/:entryId/audio",
   upload.single("audio"),
   async (req: Request, res: Response): Promise<void> => {
     const user = requireAuth(req, res);
@@ -153,7 +155,7 @@ router.post(
 );
 
 // GET /history/:entryId/audio-url — returns the backend proxy URL if audio exists, else null
-router.get("/history/:entryId/audio-url", async (req: Request, res: Response) => {
+router.get("/:entryId/audio-url", async (req: Request, res: Response) => {
   const user = requireAuth(req, res);
   if (!user) return;
   try {
@@ -171,7 +173,7 @@ router.get("/history/:entryId/audio-url", async (req: Request, res: Response) =>
 });
 
 // GET /history/:entryId/audio — stream audio from Drive via backend proxy
-router.get("/history/:entryId/audio", async (req: Request, res: Response) => {
+router.get("/:entryId/audio", async (req: Request, res: Response) => {
   const user = requireAuth(req, res);
   if (!user) return;
   try {
@@ -190,7 +192,7 @@ router.get("/history/:entryId/audio", async (req: Request, res: Response) => {
 });
 
 // DELETE /history/:entryId — delete a single entry
-router.delete("/history/:entryId", async (req: Request, res: Response) => {
+router.delete("/:entryId", async (req: Request, res: Response) => {
   const user = requireAuth(req, res);
   if (!user) return;
 
@@ -209,7 +211,7 @@ router.delete("/history/:entryId", async (req: Request, res: Response) => {
 });
 
 // DELETE /history — clear all entries for the user
-router.delete("/history", async (req: Request, res: Response) => {
+router.delete("/", async (req: Request, res: Response) => {
   const user = requireAuth(req, res);
   if (!user) return;
   try {

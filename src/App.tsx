@@ -14,6 +14,7 @@ import {
   getCurrentUser,
   hasAuthChoice,
   clearAuthChoice,
+  signInWithGoogle,
 } from "@/lib/auth";
 import type { GoogleUser } from "@/lib/auth";
 import { guestHasAcceptedVersion, fetchTos } from "@/lib/tos";
@@ -275,10 +276,7 @@ export default function App() {
             isGuest={isGuest}
             onBack={() => setStep("brief")}
             onViewEntry={viewHistoryEntry}
-            onSignIn={() => {
-              // Redirect to Google — after auth the page reloads and session resolves
-              window.location.href = `${import.meta.env.VITE_API_URL ?? ""}/auth/google`;
-            }}
+            onSignIn={signInWithGoogle}
           />
         )}
       </main>

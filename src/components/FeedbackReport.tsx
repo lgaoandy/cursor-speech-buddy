@@ -1,5 +1,8 @@
 import type { SpeechBrief, SpeechFeedback } from "@/types/speech";
 import { EVALUATION_CATEGORIES } from "@/lib/toastmasters";
+import { formatMSS } from "@/lib/format";
+import { segmentTranscript } from "@/lib/transcript";
+import { ScoreRing } from "@/components/ScoreRing";
 
 interface FeedbackReportProps {
   brief: SpeechBrief;
@@ -9,87 +12,16 @@ interface FeedbackReportProps {
   onPracticeAgain: () => void;
 }
 
-const RING_RADIUS = 20;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
-
 /** Convert a 1–10 LLM score to a displayed 1–5 score (1 decimal). */
 function toFive(raw: number): number {
   return Math.round((raw / 2) * 10) / 10;
 }
 
-function scoreTheme(score: number) {
-  if (score >= 4)
-    return {
-      stroke: "#16a34a",
-      card: "border-green-400 bg-green-50",
-      badge: "bg-green-100 text-green-800",
-      strengthText: "text-green-900",
-      improvementText: "text-red-800",
-      strengthBullet: "text-green-600",
-      improvementBullet: "text-red-500",
-    };
-  if (score >= 3)
-    return {
-      stroke: "#d97706",
-      card: "border-amber-400 bg-amber-50",
-      badge: "bg-amber-100 text-amber-800",
-      strengthText: "text-green-900",
-      improvementText: "text-red-800",
-      strengthBullet: "text-green-600",
-      improvementBullet: "text-red-500",
-    };
-  return {
-    stroke: "#dc2626",
-    card: "border-red-400 bg-red-50",
-    badge: "bg-red-100 text-red-800",
-    strengthText: "text-green-900",
-    improvementText: "text-red-800",
-    strengthBullet: "text-green-600",
-    improvementBullet: "text-red-500",
-  };
-}
-
-function ScoreRing({ score }: { score: number }) {
-  const { stroke } = scoreTheme(score);
-  const fill = (score / 5) * RING_CIRCUMFERENCE;
-  const gap = RING_CIRCUMFERENCE - fill;
-
-  return (
-    <div
-      className="relative flex shrink-0 items-center justify-center"
-      style={{ width: 56, height: 56 }}
-    >
-      <svg width="56" height="56" viewBox="0 0 56 56" fill="none" aria-hidden>
-        <circle
-          cx="28"
-          cy="28"
-          r={RING_RADIUS}
-          stroke="#e5e7eb"
-          strokeWidth="5"
-          fill="none"
-        />
-        <circle
-          cx="28"
-          cy="28"
-          r={RING_RADIUS}
-          stroke={stroke}
-          strokeWidth="5"
-          fill="none"
-          strokeLinecap="round"
-          strokeDasharray={`${fill} ${gap}`}
-          transform="rotate(-90 28 28)"
-          style={{ transition: "stroke-dasharray 0.6s ease" }}
-        />
-      </svg>
-      <span
-        className="absolute text-sm font-bold"
-        style={{ color: stroke }}
-        aria-label={`Score ${score} out of 5`}
-      >
-        {score}/5
-      </span>
-    </div>
-  );
+/** Card chrome (border + background) for a category, keyed off its 0–5 score. */
+function categoryCardClass(score: number): string {
+  if (score >= 4) return "border-green-400 bg-green-50";
+  if (score >= 3) return "border-amber-400 bg-amber-50";
+  return "border-red-400 bg-red-50";
 }
 
 const BLANK_VALUES = new Set(["n/a", "na", "none", "no", "-", "–", ""]);
@@ -108,20 +40,19 @@ function CategoryCard({
   data: SpeechFeedback["content"];
 }) {
   const displayScore = toFive(data.score);
-  const theme = scoreTheme(displayScore);
   const strengths = data.strengths.filter((s) => !isBlank(s));
   const improvements = data.improvements.filter((s) => !isBlank(s));
 
   return (
     <article
-      className={`rounded-xl border-2 p-4 ${theme.card}`}
+      className={`rounded-xl border-2 p-4 ${categoryCardClass(displayScore)}`}
     >
       <div className="mb-3 flex items-start justify-between gap-2">
         <div>
           <h3 className="font-semibold">{title}</h3>
           <p className="text-xs text-[var(--muted)]">{hint}</p>
         </div>
-        <ScoreRing score={displayScore} />
+        <ScoreRing score={displayScore} showMax />
       </div>
 
       <p className="mb-3 text-sm leading-relaxed">{data.summary}</p>
@@ -134,8 +65,8 @@ function CategoryCard({
           <ul className="flex flex-col gap-1">
             {strengths.map((s) => (
               <li key={s} className="flex gap-2 text-sm">
-                <span className={`mt-0.5 shrink-0 ${theme.strengthBullet}`}>✓</span>
-                <span className={theme.strengthText}>{s}</span>
+                <span className="mt-0.5 shrink-0 text-green-600">✓</span>
+                <span className="text-green-900">{s}</span>
               </li>
             ))}
           </ul>
@@ -150,8 +81,8 @@ function CategoryCard({
           <ul className="flex flex-col gap-1">
             {improvements.map((s) => (
               <li key={s} className="flex gap-2 text-sm">
-                <span className={`mt-0.5 shrink-0 ${theme.improvementBullet}`}>↑</span>
-                <span className={theme.improvementText}>{s}</span>
+                <span className="mt-0.5 shrink-0 text-red-500">↑</span>
+                <span className="text-red-800">{s}</span>
               </li>
             ))}
           </ul>
@@ -159,83 +90,6 @@ function CategoryCard({
       )}
     </article>
   );
-}
-
-// ---------------------------------------------------------------------------
-// Transcript segmentation
-// ---------------------------------------------------------------------------
-
-interface TranscriptSegment {
-  startSeconds: number;
-  text: string;
-}
-
-/**
- * Divides a plain-text transcript into ~60-second segments without cutting
- * mid-sentence. Timing is estimated from word-count proportion since Whisper
- * plain-text mode does not return word-level timestamps.
- */
-function segmentTranscript(
-  transcript: string,
-  durationSeconds: number,
-): TranscriptSegment[] {
-  // Split on sentence-ending punctuation followed by whitespace or end of string
-  const sentences = transcript
-    .split(/(?<=[.!?])\s+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  if (sentences.length === 0) return [];
-
-  // Word count per sentence; estimate start time of each sentence
-  const wordCounts = sentences.map((s) => s.split(/\s+/).length);
-  const totalWords = wordCounts.reduce((a, b) => a + b, 0);
-
-  const sentenceStartTimes: number[] = [];
-  let cumulative = 0;
-  for (const count of wordCounts) {
-    sentenceStartTimes.push(
-      totalWords > 0 ? (cumulative / totalWords) * durationSeconds : 0,
-    );
-    cumulative += count;
-  }
-
-  // Build one segment per minute mark (0, 60, 120 …)
-  // Each mark snaps to the sentence whose start is closest to that mark
-  // without cutting into the middle of the preceding sentence.
-  const minuteMarks: number[] = [0];
-  for (let m = 60; m < durationSeconds; m += 60) minuteMarks.push(m);
-
-  // Map each minute mark → first sentence index at/after that mark
-  const boundaries: number[] = [];
-  for (const mark of minuteMarks) {
-    if (mark === 0) {
-      boundaries.push(0);
-      continue;
-    }
-    const idx = sentenceStartTimes.findIndex((t) => t >= mark);
-    const resolved = idx === -1 ? sentences.length - 1 : idx;
-    // Skip if identical to previous boundary (edge case: short speeches)
-    if (resolved !== boundaries[boundaries.length - 1]) {
-      boundaries.push(resolved);
-    }
-  }
-
-  // Build segments
-  return boundaries.map((startIdx, bi) => {
-    const endIdx =
-      bi + 1 < boundaries.length ? boundaries[bi + 1] : sentences.length;
-    return {
-      startSeconds: Math.round(sentenceStartTimes[startIdx]),
-      text: sentences.slice(startIdx, endIdx).join(" "),
-    };
-  });
-}
-
-function fmtTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -345,14 +199,10 @@ export function FeedbackReport({
         >
           <h3 className="text-sm font-medium text-[var(--muted)]">Timing</h3>
           <p className="text-2xl font-bold">
-            {Math.floor(feedback.timing.durationSeconds / 60)}:
-            {String(feedback.timing.durationSeconds % 60).padStart(2, "0")}
+            {formatMSS(feedback.timing.durationSeconds)}
           </p>
           <p className="text-xs text-[var(--muted)]">
-            target {Math.floor(feedback.timing.minSeconds / 60)}:
-            {String(feedback.timing.minSeconds % 60).padStart(2, "0")} –{" "}
-            {Math.floor(feedback.timing.maxSeconds / 60)}:
-            {String(feedback.timing.maxSeconds % 60).padStart(2, "0")}
+            target {formatMSS(feedback.timing.minSeconds)} – {formatMSS(feedback.timing.maxSeconds)}
           </p>
           <p
             className={`mt-1 text-sm font-semibold ${
@@ -468,7 +318,7 @@ export function FeedbackReport({
               {/* Timestamp gutter */}
               <div className="flex flex-col items-center gap-1">
                 <span className="shrink-0 rounded-full bg-[var(--accent-muted)] px-2 py-0.5 font-mono text-xs font-semibold text-[var(--accent)]">
-                  {fmtTime(seg.startSeconds)}
+                  {formatMSS(seg.startSeconds)}
                 </span>
                 {i < transcriptSegments.length - 1 && (
                   <div className="w-px flex-1 bg-[var(--border)]" />

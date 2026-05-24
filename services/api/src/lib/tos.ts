@@ -1,12 +1,17 @@
 import fs from "fs";
 import path from "path";
-import { getFirestore } from "firebase-admin/firestore";
-import { initializeApp, getApps, cert } from "firebase-admin/app";
+import { firestore } from "./firebase";
 
 export const CURRENT_TOS_VERSION = "1.0";
 
-// Path resolved from compiled output (dist/lib/) up to project root, then into docs/
-const TOS_FILE_PATH = path.resolve(__dirname, "../../../../docs/SpeechBuddy_TermsOfService.md");
+// Resolved relative to process.cwd() so it survives changes to the compiled
+// output layout. The API is always started from services/api/ (both `npm run
+// dev` and `npm start`), so the repo's docs/ folder is two levels up.
+// Override with TOS_FILE_PATH (absolute or cwd-relative) in non-standard deploys.
+const TOS_FILE_PATH = path.resolve(
+  process.cwd(),
+  process.env.TOS_FILE_PATH ?? "../../docs/SpeechBuddy_TermsOfService.md",
+);
 
 export interface TosRecord {
   tosAccepted: boolean;
@@ -20,24 +25,8 @@ export interface TosStatus {
   version: string | null;
 }
 
-function initFirebase() {
-  if (getApps().length > 0) return;
-  initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-    }),
-  });
-}
-
-function db() {
-  initFirebase();
-  return getFirestore();
-}
-
 function userDocRef(userId: string) {
-  return db().collection("users").doc(userId);
+  return firestore().collection("users").doc(userId);
 }
 
 export function getTosContent(): string {

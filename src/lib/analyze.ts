@@ -1,23 +1,16 @@
 import type { SpeechBrief, SpeechFeedback } from "@/types/speech";
-import { FILLER_PATTERNS } from "@/lib/toastmasters";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
-export function countFillers(transcript: string): {
-  count: number;
-  breakdown: Record<string, number>;
-} {
-  const matches = transcript.match(FILLER_PATTERNS) ?? [];
-  const breakdown: Record<string, number> = {};
-  for (const match of matches) {
-    const word = match.toLowerCase();
-    breakdown[word] = (breakdown[word] ?? 0) + 1;
-  }
-  return { count: matches.length, breakdown };
-}
+// Fixed sample so demo mode (no backend) shows a realistic-looking filler card
+// without dragging the real regex into the bundle.
+const DEMO_FILLERS = {
+  count: 8,
+  breakdown: { um: 2, uh: 1, like: 2, "you know": 1, "sort of": 1, basically: 1 },
+};
 
 /** Mock feedback for local dev when no API is running */
-export function mockFeedback(
+function mockFeedback(
   brief: SpeechBrief,
   durationSeconds: number,
 ): SpeechFeedback {
@@ -25,9 +18,6 @@ export function mockFeedback(
   const maxSeconds = brief.maxSeconds;
   const transcript =
     "[Demo mode] Connect VITE_API_URL to your backend for real transcription and AI feedback.";
-  const fillers = countFillers(
-    "um so today uh I want to talk about like you know sort of our three goals basically",
-  );
 
   return {
     transcript,
@@ -38,7 +28,7 @@ export function mockFeedback(
       withinRange: durationSeconds >= minSeconds && durationSeconds <= maxSeconds,
       percentOfMax: Math.round((durationSeconds / maxSeconds) * 100),
     },
-    fillers,
+    fillers: DEMO_FILLERS,
     content: {
       score: 6,
       summary: "Placeholder — wire up the analyze API.",

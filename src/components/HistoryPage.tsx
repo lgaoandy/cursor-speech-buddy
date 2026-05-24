@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { HistoryStore } from "@/lib/history";
 import type { HistoryEntry } from "@/types/speech";
+import { formatHistoryDate, formatDurationLabel } from "@/lib/format";
+import { ScoreRing } from "@/components/ScoreRing";
 
 type AudioState = "idle" | "loading" | "loaded" | "no-audio" | "fetch-error" | "playback-error";
 
@@ -89,67 +91,6 @@ function AudioPlayer({
       <track kind="captions" />
     </audio>
   );
-}
-
-const RING_RADIUS = 16;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
-
-function MiniScoreRing({ score }: { score: number }) {
-  const fill = (score / 5) * RING_CIRCUMFERENCE;
-  const gap = RING_CIRCUMFERENCE - fill;
-  const color = score >= 4 ? "#16a34a" : score >= 3 ? "#d97706" : "#dc2626";
-
-  return (
-    <div
-      className="relative flex shrink-0 items-center justify-center"
-      style={{ width: 44, height: 44 }}
-    >
-      <svg width="44" height="44" viewBox="0 0 44 44" fill="none" aria-hidden>
-        <circle
-          cx="22"
-          cy="22"
-          r={RING_RADIUS}
-          stroke="var(--border)"
-          strokeWidth="3"
-          fill="none"
-        />
-        <circle
-          cx="22"
-          cy="22"
-          r={RING_RADIUS}
-          stroke={color}
-          strokeWidth="3"
-          fill="none"
-          strokeLinecap="round"
-          strokeDasharray={`${fill} ${gap}`}
-          transform="rotate(-90 22 22)"
-        />
-      </svg>
-      <span
-        className="absolute text-xs font-bold"
-        style={{ color }}
-        aria-label={`Average score ${score}`}
-      >
-        {score}
-      </span>
-    </div>
-  );
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function formatDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
 interface HistoryPageProps {
@@ -299,17 +240,17 @@ export function HistoryPage({
               className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4"
             >
               <div className="flex items-start gap-3">
-                <MiniScoreRing score={entry.averageScore} />
+                <ScoreRing score={entry.averageScore} size={44} />
 
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold">{entry.brief.title}</p>
                   <p className="text-xs text-[var(--muted)]">
-                    {formatDate(entry.createdAt)}
+                    {formatHistoryDate(entry.createdAt)}
                   </p>
 
                   <div className="mt-2 flex flex-wrap gap-3 text-sm text-[var(--muted)]">
                     <span>
-                      ⏱ {formatDuration(entry.feedback.timing.durationSeconds)}{" "}
+                      ⏱ {formatDurationLabel(entry.feedback.timing.durationSeconds)}{" "}
                       <span
                         className={
                           entry.feedback.timing.withinRange

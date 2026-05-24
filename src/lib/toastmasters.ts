@@ -163,6 +163,3 @@ export const EVALUATION_CATEGORIES = [
     hint: "Grammar, word choice, and concision",
   },
 ];
-
-export const FILLER_PATTERNS =
-  /\b(um+|uh+|ah+|er+|erm+|like|you know|sort of|kind of|basically|literally|actually|right\?|yeah)\b/gi;

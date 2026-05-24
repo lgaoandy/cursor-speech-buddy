@@ -1,5 +1,11 @@
-import { google } from "googleapis";
+import { google, type drive_v3 } from "googleapis";
 import { Readable } from "stream";
+
+function driveClient(accessToken: string): drive_v3.Drive {
+  const auth = new google.auth.OAuth2();
+  auth.setCredentials({ access_token: accessToken });
+  return google.drive({ version: "v3", auth });
+}
 
 /**
  * Uploads an audio buffer to the user's Google Drive.
@@ -12,12 +18,7 @@ export async function uploadAudioToDrive(
   buffer: Buffer,
   mimeType: string,
 ): Promise<string> {
-  const auth = new google.auth.OAuth2();
-  auth.setCredentials({ access_token: accessToken });
-
-  const drive = google.drive({ version: "v3", auth });
-
-  const response = await drive.files.create({
+  const response = await driveClient(accessToken).files.create({
     requestBody: {
       name: `speech-buddy-${entryId}.webm`,
       mimeType,
@@ -43,12 +44,7 @@ export async function streamAudioFromDrive(
   fileId: string,
   res: import("express").Response,
 ): Promise<void> {
-  const auth = new google.auth.OAuth2();
-  auth.setCredentials({ access_token: accessToken });
-
-  const drive = google.drive({ version: "v3", auth });
-
-  const driveRes = await drive.files.get(
+  const driveRes = await driveClient(accessToken).files.get(
     { fileId, alt: "media" },
     { responseType: "stream" },
   );
@@ -65,10 +61,7 @@ export async function deleteAudioFromDrive(
   accessToken: string,
   fileId: string,
 ): Promise<void> {
-  const auth = new google.auth.OAuth2();
-  auth.setCredentials({ access_token: accessToken });
-  const drive = google.drive({ version: "v3", auth });
-  await drive.files.delete({ fileId }).catch(() => {
+  await driveClient(accessToken).files.delete({ fileId }).catch(() => {
     // File may already be deleted — ignore
   });
 }

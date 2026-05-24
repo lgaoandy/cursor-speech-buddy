@@ -1,6 +1,11 @@
 import { useState } from "react";
 import type { SpeechBrief } from "@/types/speech";
-import { SPEECH_FORMATS, WATCH_FOR_OPTIONS } from "@/lib/toastmasters";
+import {
+  SPEECH_FORMATS,
+  WATCH_FOR_OPTIONS,
+  TOASTMASTERS_PATHS,
+  getFormatDefaults,
+} from "@/lib/toastmasters";
 import { TimePickerModal } from "@/components/TimePickerModal";
 
 interface SpeechBriefFormProps {
@@ -99,9 +104,11 @@ export function SpeechBriefForm({
           id="format"
           className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm"
           value={brief.format}
-          onChange={(e) =>
-            update("format", e.target.value as SpeechBrief["format"])
-          }
+          onChange={(e) => {
+            const format = e.target.value as SpeechBrief["format"];
+            const defaults = getFormatDefaults(format);
+            onChange({ ...brief, format, minSeconds: defaults.minSeconds, maxSeconds: defaults.maxSeconds });
+          }}
         >
           {SPEECH_FORMATS.map((f) => (
             <option key={f.value} value={f.value}>
@@ -110,6 +117,41 @@ export function SpeechBriefForm({
           ))}
         </select>
       </fieldset>
+
+      {brief.format === "toastmasters" && (
+        <fieldset className="flex flex-col gap-2">
+          <label htmlFor="tmPath" className="text-sm font-medium">
+            Learning path
+            <span className="ml-1.5 text-xs font-normal text-[var(--muted)]">
+              (optional)
+            </span>
+          </label>
+          <select
+            id="tmPath"
+            className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm"
+            value={brief.toastmastersPath ?? ""}
+            onChange={(e) =>
+              update("toastmastersPath", e.target.value || undefined)
+            }
+          >
+            <option value="">— Select a path —</option>
+            {TOASTMASTERS_PATHS.map((p) => (
+              <option key={p.value} value={p.value}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+          {brief.toastmastersPath && (
+            <p className="text-xs text-[var(--muted)]">
+              {
+                TOASTMASTERS_PATHS.find(
+                  (p) => p.value === brief.toastmastersPath,
+                )?.focus
+              }
+            </p>
+          )}
+        </fieldset>
+      )}
 
       <fieldset className="flex flex-col gap-2">
         <label htmlFor="title" className="text-sm font-medium">

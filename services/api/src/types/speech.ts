@@ -1,6 +1,7 @@
 export type SpeechFormat =
   | "toastmasters"
   | "pitch"
+  | "elevator-pitch"
   | "wedding"
   | "keynote"
   | "status-update"
@@ -16,6 +17,7 @@ export type WatchForCriteria =
 
 export interface SpeechBrief {
   format: SpeechFormat;
+  toastmastersPath?: string;
   title: string;
   description: string;
   takeaways: [string, string, string];

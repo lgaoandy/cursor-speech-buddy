@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { RecordingTimer } from "@/components/RecordingTimer";
+import { WaveformPlayer } from "@/components/WaveformPlayer";
 
 // ─── Mic error helpers ────────────────────────────────────────────────────────
 
@@ -121,6 +122,8 @@ interface RecordOrUploadProps {
   maxSeconds: number;
 }
 
+type RecorderState = "idle" | "recording" | "paused";
+
 export function RecordOrUpload({
   onBack,
   onAnalyze,
@@ -128,38 +131,58 @@ export function RecordOrUpload({
   minSeconds,
   maxSeconds,
 }: RecordOrUploadProps) {
-  const [recording, setRecording] = useState(false);
+  const [recorderState, setRecorderState] = useState<RecorderState>("idle");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [durationSeconds, setDurationSeconds] = useState(0);
   const [micError, setMicError] = useState<MicErrorInfo | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const startedAtRef = useRef<number>(0);
+  const segmentStartRef = useRef<number>(0);
+  const accumulatedSecsRef = useRef<number>(0);
   const timerRef = useRef<number | null>(null);
 
+  const stopTimer = () => {
+    if (timerRef.current) {
+      window.clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const startTimer = () => {
+    segmentStartRef.current = Date.now();
+    timerRef.current = window.setInterval(() => {
+      const segSecs = (Date.now() - segmentStartRef.current) / 1000;
+      setDurationSeconds(Math.round(accumulatedSecsRef.current + segSecs));
+    }, 500);
+  };
+
+  const teardownRecorder = useCallback(() => {
+    stopTimer();
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") recorder.stop();
+    mediaRecorderRef.current = null;
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    chunksRef.current = [];
+    accumulatedSecsRef.current = 0;
+  }, []);
+
   const clearAudio = useCallback(() => {
-    if (audioUrl) URL.revokeObjectURL(audioUrl);
-    setAudioUrl(null);
+    teardownRecorder();
+    setAudioUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
     setAudioBlob(null);
     setDurationSeconds(0);
-  }, [audioUrl]);
+    setRecorderState("idle");
+  }, [teardownRecorder]);
 
   useEffect(() => {
     return () => {
-      if (audioUrl) URL.revokeObjectURL(audioUrl);
-      if (timerRef.current) window.clearInterval(timerRef.current);
+      teardownRecorder();
     };
-  }, [audioUrl]);
-
-  const setBlob = (blob: Blob, duration: number) => {
-    clearAudio();
-    const url = URL.createObjectURL(blob);
-    setAudioUrl(url);
-    setAudioBlob(blob);
-    setDurationSeconds(duration);
-  };
+  }, []);
 
   // Spacebar toggles recording — but only when focus is NOT in a text input
   useEffect(() => {
@@ -168,51 +191,85 @@ export function RecordOrUpload({
       const tag = (e.target as HTMLElement).tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       e.preventDefault();
-      recording ? stopRecording() : void startRecording();
+      if (recorderState === "recording") {
+        pauseRecording();
+      } else {
+        void startRecording();
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [recording, isAnalyzing]);
+  }, [recorderState, isAnalyzing]);
 
   const startRecording = async () => {
+    // Resume the paused session — all chunks are already accumulated
+    if (recorderState === "paused" && mediaRecorderRef.current) {
+      accumulatedSecsRef.current = durationSeconds;
+      setAudioUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
+      setAudioBlob(null);
+      mediaRecorderRef.current.resume();
+      setRecorderState("recording");
+      startTimer();
+      return;
+    }
+
+    // Fresh start — tear down any leftover state
     setMicError(null);
+    teardownRecorder();
+    setAudioUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
+    setAudioBlob(null);
+    setDurationSeconds(0);
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
       const recorder = new MediaRecorder(stream);
-      chunksRef.current = [];
       mediaRecorderRef.current = recorder;
-      startedAtRef.current = Date.now();
+      chunksRef.current = [];
+      accumulatedSecsRef.current = 0;
 
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
 
-      recorder.onstop = () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        const duration = Math.round((Date.now() - startedAtRef.current) / 1000);
-        setBlob(blob, duration);
-        if (timerRef.current) {
-          window.clearInterval(timerRef.current);
-          timerRef.current = null;
-        }
-        setRecording(false);
+      // Build a preview blob each time the recorder pauses
+      recorder.onpause = () => {
+        if (chunksRef.current.length === 0) return;
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        const url = URL.createObjectURL(blob);
+        setAudioUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return url; });
+        setAudioBlob(blob);
       };
 
-      recorder.start();
-      setRecording(true);
-      timerRef.current = window.setInterval(() => {
-        setDurationSeconds(
-          Math.round((Date.now() - startedAtRef.current) / 1000),
-        );
-      }, 500);
+      recorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+        mediaRecorderRef.current = null;
+      };
+
+      recorder.start(250);
+      setRecorderState("recording");
+      startTimer();
     } catch (err) {
       setMicError(getMicErrorInfo(classifyMicError(err)));
     }
   };
 
-  const stopRecording = () => {
-    mediaRecorderRef.current?.stop();
+  const pauseRecording = () => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state !== "recording") return;
+    accumulatedSecsRef.current += (Date.now() - segmentStartRef.current) / 1000;
+    stopTimer();
+    setDurationSeconds(Math.round(accumulatedSecsRef.current));
+    recorder.requestData();
+    recorder.pause();
+    setRecorderState("paused");
+  };
+
+  const handleAnalyze = () => {
+    if (!audioBlob) return;
+    teardownRecorder();
+    onAnalyze(audioBlob, durationSeconds);
   };
 
   const handleFile = (file: File | null) => {
@@ -250,7 +307,7 @@ export function RecordOrUpload({
 
       {/* Screen reader announcement for recording state changes */}
       <p className="sr-only" aria-live="assertive" aria-atomic="true">
-        {recording ? "Recording started" : audioBlob ? "Recording stopped" : ""}
+        {recorderState === "recording" ? "Recording started" : recorderState === "paused" ? "Recording paused" : audioBlob ? "Recording stopped" : ""}
       </p>
 
       {micError && (
@@ -264,8 +321,8 @@ export function RecordOrUpload({
         </div>
       )}
 
-      {/* Timer — only visible while recording */}
-      {recording && (
+      {/* Timer — visible while recording or paused */}
+      {recorderState !== "idle" && (
         <RecordingTimer
           durationSeconds={durationSeconds}
           minSeconds={minSeconds}
@@ -274,7 +331,16 @@ export function RecordOrUpload({
       )}
 
       <div className="flex flex-wrap gap-3">
-        {!recording ? (
+        {recorderState === "recording" ? (
+          <button
+            type="button"
+            onClick={pauseRecording}
+            aria-pressed={true}
+            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white"
+          >
+            Stop recording
+          </button>
+        ) : (
           <button
             type="button"
             onClick={startRecording}
@@ -282,31 +348,22 @@ export function RecordOrUpload({
             aria-pressed={false}
             className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white"
           >
-            Start recording
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={stopRecording}
-            aria-pressed={true}
-            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white"
-          >
-            Stop recording
+            {recorderState === "paused" ? "Resume recording" : "Start recording"}
           </button>
         )}
 
-        <label className="cursor-pointer rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-sm font-medium">
+        <label className={`cursor-pointer rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-sm font-medium ${recorderState !== "idle" || isAnalyzing ? "pointer-events-none opacity-50" : ""}`}>
           Upload audio
           <input
             type="file"
             accept="audio/*"
             className="hidden"
-            disabled={isAnalyzing}
+            disabled={recorderState !== "idle" || isAnalyzing}
             onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
           />
         </label>
 
-        {audioBlob && (
+        {(audioBlob || recorderState !== "idle") && (
           <button
             type="button"
             onClick={clearAudio}
@@ -317,10 +374,9 @@ export function RecordOrUpload({
         )}
       </div>
 
-      {audioUrl && (
-        <audio controls src={audioUrl} className="w-full">
-          <track kind="captions" />
-        </audio>
+      {/* Waveform preview — only shown when paused, not while actively recording */}
+      {audioUrl && audioBlob && recorderState !== "recording" && (
+        <WaveformPlayer audioUrl={audioUrl} audioBlob={audioBlob} />
       )}
 
       <div className="flex gap-3">
@@ -335,7 +391,7 @@ export function RecordOrUpload({
         <button
           type="button"
           disabled={!audioBlob || isAnalyzing}
-          onClick={() => audioBlob && onAnalyze(audioBlob, durationSeconds)}
+          onClick={handleAnalyze}
           className="flex-1 rounded-lg bg-[var(--accent)] px-4 py-3 text-sm font-medium text-white disabled:opacity-50"
         >
           {isAnalyzing ? "Analyzing…" : "Analyze speech"}

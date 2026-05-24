@@ -11,32 +11,63 @@ interface FeedbackReportProps {
 const RING_RADIUS = 20;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
+function scoreTheme(score: number) {
+  if (score >= 4)
+    return {
+      stroke: "#16a34a",
+      card: "border-green-400 bg-green-50",
+      badge: "bg-green-100 text-green-800",
+      strengthText: "text-green-900",
+      improvementText: "text-red-800",
+      strengthBullet: "text-green-600",
+      improvementBullet: "text-red-500",
+    };
+  if (score >= 3)
+    return {
+      stroke: "#d97706",
+      card: "border-amber-400 bg-amber-50",
+      badge: "bg-amber-100 text-amber-800",
+      strengthText: "text-green-900",
+      improvementText: "text-red-800",
+      strengthBullet: "text-green-600",
+      improvementBullet: "text-red-500",
+    };
+  return {
+    stroke: "#dc2626",
+    card: "border-red-400 bg-red-50",
+    badge: "bg-red-100 text-red-800",
+    strengthText: "text-green-900",
+    improvementText: "text-red-800",
+    strengthBullet: "text-green-600",
+    improvementBullet: "text-red-500",
+  };
+}
+
 function ScoreRing({ score }: { score: number }) {
+  const { stroke } = scoreTheme(score);
   const fill = (score / 5) * RING_CIRCUMFERENCE;
   const gap = RING_CIRCUMFERENCE - fill;
 
-  const strokeColor =
-    score >= 4 ? "#16a34a" : score >= 3 ? "#d97706" : "#dc2626";
-
   return (
-    <div className="relative flex shrink-0 items-center justify-center" style={{ width: 56, height: 56 }}>
+    <div
+      className="relative flex shrink-0 items-center justify-center"
+      style={{ width: 56, height: 56 }}
+    >
       <svg width="56" height="56" viewBox="0 0 56 56" fill="none" aria-hidden>
-        {/* Track */}
         <circle
           cx="28"
           cy="28"
           r={RING_RADIUS}
-          stroke="var(--border)"
-          strokeWidth="4"
+          stroke="#e5e7eb"
+          strokeWidth="5"
           fill="none"
         />
-        {/* Progress arc — starts at 12 o'clock */}
         <circle
           cx="28"
           cy="28"
           r={RING_RADIUS}
-          stroke={strokeColor}
-          strokeWidth="4"
+          stroke={stroke}
+          strokeWidth="5"
           fill="none"
           strokeLinecap="round"
           strokeDasharray={`${fill} ${gap}`}
@@ -44,16 +75,21 @@ function ScoreRing({ score }: { score: number }) {
           style={{ transition: "stroke-dasharray 0.6s ease" }}
         />
       </svg>
-      {/* Score label centered inside ring */}
       <span
         className="absolute text-sm font-bold"
-        style={{ color: strokeColor }}
+        style={{ color: stroke }}
         aria-label={`Score ${score} out of 5`}
       >
         {score}/5
       </span>
     </div>
   );
+}
+
+const BLANK_VALUES = new Set(["n/a", "na", "none", "no", "-", "–", ""]);
+
+function isBlank(s: string) {
+  return BLANK_VALUES.has(s.trim().toLowerCase());
 }
 
 function CategoryCard({
@@ -65,32 +101,74 @@ function CategoryCard({
   hint: string;
   data: SpeechFeedback["content"];
 }) {
+  const theme = scoreTheme(data.score);
+  const strengths = data.strengths.filter((s) => !isBlank(s));
+  const improvements = data.improvements.filter((s) => !isBlank(s));
+
   return (
-    <article className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
-      <div className="mb-2 flex items-start justify-between gap-2">
+    <article
+      className={`rounded-xl border-2 p-4 ${theme.card}`}
+    >
+      <div className="mb-3 flex items-start justify-between gap-2">
         <div>
           <h3 className="font-semibold">{title}</h3>
           <p className="text-xs text-[var(--muted)]">{hint}</p>
         </div>
         <ScoreRing score={data.score} />
       </div>
-      <p className="mb-3 text-sm">{data.summary}</p>
-      {data.strengths.length > 0 && (
-        <ul className="mb-2 list-inside list-disc text-sm text-green-800">
-          {data.strengths.map((s) => (
-            <li key={s}>{s}</li>
-          ))}
-        </ul>
+
+      <p className="mb-3 text-sm leading-relaxed">{data.summary}</p>
+
+      {strengths.length > 0 && (
+        <div className="mb-2">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-green-700">
+            Strengths
+          </p>
+          <ul className="flex flex-col gap-1">
+            {strengths.map((s) => (
+              <li key={s} className="flex gap-2 text-sm">
+                <span className={`mt-0.5 shrink-0 ${theme.strengthBullet}`}>✓</span>
+                <span className={theme.strengthText}>{s}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
-      {data.improvements.length > 0 && (
-        <ul className="list-inside list-disc text-sm text-amber-900">
-          {data.improvements.map((s) => (
-            <li key={s}>{s}</li>
-          ))}
-        </ul>
+
+      {improvements.length > 0 && (
+        <div>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-red-600">
+            Areas to improve
+          </p>
+          <ul className="flex flex-col gap-1">
+            {improvements.map((s) => (
+              <li key={s} className="flex gap-2 text-sm">
+                <span className={`mt-0.5 shrink-0 ${theme.improvementBullet}`}>↑</span>
+                <span className={theme.improvementText}>{s}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </article>
   );
+}
+
+/** Split overallSummary into bullet points if it contains sentence breaks. */
+function parseSummaryBullets(text: string): string[] {
+  // Already formatted with bullet markers
+  if (/^[-•*]\s/m.test(text)) {
+    return text
+      .split(/\n/)
+      .map((l) => l.replace(/^[-•*]\s*/, "").trim())
+      .filter(Boolean);
+  }
+  // Split on sentence boundaries into bullets (3+ sentences → list)
+  const sentences = text
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return sentences.length >= 3 ? sentences : [text];
 }
 
 export function FeedbackReport({
@@ -105,17 +183,41 @@ export function FeedbackReport({
     language: feedback.language,
   };
 
+  const summaryBullets = parseSummaryBullets(feedback.overallSummary);
+
   return (
     <div className="flex flex-col gap-6">
-      <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
-        <h2 className="mb-1 font-semibold">Overall</h2>
-        <p className="text-sm">{feedback.overallSummary}</p>
+
+      {/* Overall summary */}
+      <section className="rounded-xl border-2 border-[var(--accent)] bg-[var(--accent-muted)] p-4">
+        <h2 className="mb-2 font-semibold text-[var(--accent)]">Overall</h2>
+        {summaryBullets.length === 1 ? (
+          <p className="text-sm leading-relaxed">{summaryBullets[0]}</p>
+        ) : (
+          <ul className="flex flex-col gap-1.5">
+            {summaryBullets.map((point, i) => (
+              <li key={i} className="flex gap-2 text-sm leading-relaxed">
+                <span className="mt-0.5 shrink-0 font-bold text-[var(--accent)]">·</span>
+                <span>{point}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
+      {/* Timing + Fillers */}
       <section className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
+        <div
+          className={`rounded-xl border-2 p-4 ${
+            feedback.timing.durationSeconds < feedback.timing.minSeconds
+              ? "border-amber-400 bg-amber-50"
+              : feedback.timing.withinRange
+                ? "border-green-400 bg-green-50"
+                : "border-red-400 bg-red-50"
+          }`}
+        >
           <h3 className="text-sm font-medium text-[var(--muted)]">Timing</h3>
-          <p className="text-2xl font-semibold">
+          <p className="text-2xl font-bold">
             {Math.floor(feedback.timing.durationSeconds / 60)}:
             {String(feedback.timing.durationSeconds % 60).padStart(2, "0")}
           </p>
@@ -126,12 +228,12 @@ export function FeedbackReport({
             {String(feedback.timing.maxSeconds % 60).padStart(2, "0")}
           </p>
           <p
-            className={`mt-1 text-sm font-medium ${
+            className={`mt-1 text-sm font-semibold ${
               feedback.timing.durationSeconds < feedback.timing.minSeconds
-                ? "text-amber-600"
+                ? "text-amber-700"
                 : feedback.timing.withinRange
                   ? "text-green-700"
-                  : "text-red-600"
+                  : "text-red-700"
             }`}
           >
             {feedback.timing.durationSeconds < feedback.timing.minSeconds
@@ -141,9 +243,18 @@ export function FeedbackReport({
                 : `Over maximum by ${feedback.timing.durationSeconds - feedback.timing.maxSeconds}s`}
           </p>
         </div>
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
+
+        <div
+          className={`rounded-xl border-2 p-4 ${
+            feedback.fillers.count === 0
+              ? "border-green-400 bg-green-50"
+              : feedback.fillers.count <= 5
+                ? "border-amber-400 bg-amber-50"
+                : "border-red-400 bg-red-50"
+          }`}
+        >
           <h3 className="text-sm font-medium text-[var(--muted)]">Filler words</h3>
-          <p className="text-2xl font-semibold">
+          <p className="text-2xl font-bold">
             {feedback.fillers.count}
             <span className="text-base font-normal text-[var(--muted)]"> total</span>
           </p>
@@ -154,7 +265,7 @@ export function FeedbackReport({
                 .map(([word, n]) => (
                   <li
                     key={word}
-                    className="flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--background)] px-2.5 py-1"
+                    className="flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-white px-2.5 py-1"
                   >
                     <span className="text-xs font-medium">"{word}"</span>
                     <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--accent)] text-[10px] font-bold text-white">
@@ -165,11 +276,14 @@ export function FeedbackReport({
             </ul>
           )}
           {feedback.fillers.count === 0 && (
-            <p className="mt-1 text-xs text-green-700">No filler words detected</p>
+            <p className="mt-1 text-sm font-semibold text-green-700">
+              No filler words detected
+            </p>
           )}
         </div>
       </section>
 
+      {/* Category cards */}
       <section className="flex flex-col gap-3">
         <h2 className="font-semibold">Toastmasters categories</h2>
         {EVALUATION_CATEGORIES.map((cat) => (
@@ -182,7 +296,8 @@ export function FeedbackReport({
         ))}
       </section>
 
-      <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
+      {/* Audience takeaways */}
+      <section className="rounded-xl border-2 border-[var(--border)] bg-[var(--card)] p-4">
         <h2 className="mb-3 font-semibold">Audience takeaways</h2>
         <ul className="flex flex-col gap-3">
           {feedback.takeawayAlignment
@@ -190,16 +305,22 @@ export function FeedbackReport({
             .map((item, i) => (
               <li
                 key={i}
-                className="flex gap-3 rounded-lg border border-[var(--border)] p-3 text-sm"
+                className={`flex gap-3 rounded-lg border-2 p-3 text-sm ${
+                  item.addressed
+                    ? "border-green-300 bg-green-50"
+                    : "border-amber-300 bg-amber-50"
+                }`}
               >
                 <span
-                  className={`mt-0.5 shrink-0 text-lg ${item.addressed ? "text-green-600" : "text-amber-500"}`}
+                  className={`mt-0.5 shrink-0 text-lg font-bold ${
+                    item.addressed ? "text-green-600" : "text-amber-500"
+                  }`}
                   aria-hidden
                 >
                   {item.addressed ? "✓" : "○"}
                 </span>
                 <div>
-                  <p className="font-medium">
+                  <p className="font-semibold">
                     {item.takeaway || brief.takeaways[i]}
                   </p>
                   <p className="text-[var(--muted)]">{item.notes}</p>
@@ -209,7 +330,8 @@ export function FeedbackReport({
         </ul>
       </section>
 
-      <details className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
+      {/* Transcript */}
+      <details className="rounded-xl border-2 border-[var(--border)] bg-[var(--card)] p-4">
         <summary className="cursor-pointer text-sm font-medium">
           Transcript
         </summary>
@@ -229,7 +351,7 @@ export function FeedbackReport({
         <button
           type="button"
           onClick={onStartOver}
-          className="rounded-lg border border-[var(--border)] px-4 py-3 text-sm"
+          className="rounded-lg border-2 border-[var(--border)] px-4 py-3 text-sm font-medium"
         >
           New speech brief
         </button>
